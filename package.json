@@ -1,0 +1,29 @@
+{
+  "name": "flappycoin",
+  "version": "1.0.0",
+  "description": "Многопользовательская Telegram Mini App игра в стиле FlappyBird с криптотематикой",
+  "main": "server/server.js",
+  "scripts": {
+    "start": "node server/server.js",
+    "dev": "nodemon server/server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "telegram",
+    "mini-app",
+    "flappy-bird",
+    "game",
+    "websocket"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "dotenv": "^16.4.2",
+    "express": "^4.18.2",
+    "socket.io": "^4.7.2",
+    "fs-extra": "^11.2.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  }
+} 

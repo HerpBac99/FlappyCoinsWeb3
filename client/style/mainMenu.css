@@ -1,0 +1,213 @@
+/* Общие стили */
+:root {
+    --primary-color: #3498db;
+    --secondary-color: #2ecc71;
+    --background-color: #1e272e;
+    --text-color: #ecf0f1;
+    --border-color: #34495e;
+    --button-hover-color: #2980b9;
+    --room-background-color: rgba(52, 73, 94, 0.7);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Roboto', Arial, sans-serif;
+}
+
+body {
+    background-color: var(--background-color);
+    color: var(--text-color);
+    min-height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Шапка с данными пользователя */
+.user-info {
+    display: flex;
+    align-items: center;
+    padding: 15px;
+    background-color: rgba(0, 0, 0, 0.3);
+    position: absolute;
+    top: 0;
+    right: 0;
+    z-index: 10;
+    border-bottom-left-radius: 10px;
+}
+
+.user-photo {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    overflow: hidden;
+    margin-right: 10px;
+    border: 2px solid var(--primary-color);
+}
+
+.user-photo img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.user-details {
+    display: flex;
+    flex-direction: column;
+}
+
+.username {
+    font-size: 16px;
+    font-weight: bold;
+}
+
+.score {
+    font-size: 14px;
+    color: var(--secondary-color);
+}
+
+/* Центральный контейнер с монетой */
+.center-container {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+}
+
+.coin-animation {
+    width: 150px;
+    height: 150px;
+    position: relative;
+    animation: float 2s ease-in-out infinite;
+}
+
+.coin-animation img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+/* Анимация парения монеты */
+@keyframes float {
+    0% {
+        transform: translateY(0px);
+    }
+    50% {
+        transform: translateY(-20px);
+    }
+    100% {
+        transform: translateY(0px);
+    }
+}
+
+/* Контейнер с кнопками */
+.buttons-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-bottom: 30px;
+    gap: 15px;
+}
+
+.button {
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    padding: 12px 25px;
+    font-size: 16px;
+    border-radius: 50px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-width: 200px;
+    text-align: center;
+}
+
+.button:hover {
+    background-color: var(--button-hover-color);
+    transform: scale(1.05);
+}
+
+.button:active {
+    transform: scale(0.98);
+}
+
+.button.create-room {
+    background-color: var(--secondary-color);
+}
+
+.button.create-room:hover {
+    background-color: #27ae60;
+}
+
+/* Комнаты */
+.rooms-container {
+    display: none; /* Скрыт по умолчанию */
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background-color: rgba(0, 0, 0, 0.8);
+    padding: 20px;
+    max-height: 50vh;
+    overflow-y: auto;
+}
+
+.rooms-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 15px;
+    margin-top: 15px;
+}
+
+.room-item {
+    background-color: var(--room-background-color);
+    border-radius: 10px;
+    padding: 15px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.room-item:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+}
+
+.room-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+
+.room-id {
+    font-weight: bold;
+    font-size: 18px;
+}
+
+.room-players {
+    color: var(--secondary-color);
+}
+
+.room-creator {
+    font-size: 14px;
+    color: #bdc3c7;
+}
+
+/* Адаптивный дизайн */
+@media (max-width: 768px) {
+    .rooms-list {
+        grid-template-columns: 1fr;
+    }
+    
+    .button {
+        min-width: 180px;
+        font-size: 14px;
+    }
+    
+    .coin-animation {
+        width: 120px;
+        height: 120px;
+    }
+} 

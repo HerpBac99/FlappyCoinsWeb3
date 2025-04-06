@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FlappyCoin</title>
+    <link rel="stylesheet" href="Style/mainMenu.css">
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+</head>
+<body>
+    <!-- Контейнер с данными пользователя -->
+    <div class="user-info">
+        <div class="user-photo">
+            <img id="user-avatar" src="assets/default-avatar.png" alt="Аватар">
+        </div>
+        <div class="user-details">
+            <div id="username" class="username">Загрузка...</div>
+            <div id="user-score" class="score">Счет: 0</div>
+        </div>
+    </div>
+
+    <!-- Центральный контейнер с анимацией монеты -->
+    <div class="center-container">
+        <div class="coin-animation">
+            <img id="coin-sprite" src="assets/bitcoin.png" alt="Монета">
+        </div>
+    </div>
+
+    <!-- Контейнер с кнопками -->
+    <div class="buttons-container">
+        <button id="create-room-btn" class="button create-room">Создать комнату</button>
+        <button id="join-room-btn" class="button">Присоединиться к комнате</button>
+        <button id="leaderboard-btn" class="button">Таблица лидеров</button>
+    </div>
+
+    <!-- Контейнер со списком комнат (скрыт по умолчанию) -->
+    <div id="rooms-container" class="rooms-container">
+        <h2>Доступные комнаты</h2>
+        <div id="rooms-list" class="rooms-list">
+            <!-- Комнаты будут добавлены динамически через JavaScript -->
+        </div>
+    </div>
+
+    <!-- Подключение Socket.IO -->
+    <script src="/socket.io/socket.io.js"></script>
+    
+    <!-- Подключение основного скрипта -->
+    <script>
+        // Проверяем, запущено ли приложение в Telegram Web App
+        const tgApp = window.Telegram?.WebApp;
+        let userData = null;
+        let socket = null;
+
+        // Инициализация приложения
+        document.addEventListener('DOMContentLoaded', () => {
+            // Инициализация Telegram Mini App
+            if (tgApp) {
+                // Разворачиваем приложение на весь экран
+                tgApp.expand();
+                
+                // Получаем данные пользователя из Telegram
+                if (tgApp.initDataUnsafe && tgApp.initDataUnsafe.user) {
+                    userData = {
+                        id: tgApp.initDataUnsafe.user.id,
+                        username: tgApp.initDataUnsafe.user.username || `User${tgApp.initDataUnsafe.user.id}`,
+                        first_name: tgApp.initDataUnsafe.user.first_name,
+                        last_name: tgApp.initDataUnsafe.user.last_name,
+                        photo_url: tgApp.initDataUnsafe.user.photo_url
+                    };
+                    
+                    // Обновляем интерфейс с данными пользователя
+                    updateUserInterface(userData);
+                }
+            } else {
+                // Для тестирования локально, создаем тестового пользователя
+                userData = {
+                    id: "12345",
+                    username: "TestUser",
+                    first_name: "Test",
+                    last_name: "User",
+                    photo_url: null
+                };
+                
+                // Обновляем интерфейс с данными пользователя
+                updateUserInterface(userData);
+                
+                console.warn('Приложение запущено вне Telegram Mini App');
+            }
+            
+            // Инициализация WebSocket соединения
+            initializeSocket();
+            
+            // Настраиваем обработчики событий для кнопок
+            setupEventListeners();
+        });
+
+        // Обновление интерфейса с данными пользователя
+        function updateUserInterface(user) {
+            // Обновляем имя пользователя
+            document.getElementById('username').textContent = user.username || 'Аноним';
+            
+            // Обновляем аватар, если доступен
+            if (user.photo_url) {
+                document.getElementById('user-avatar').src = user.photo_url;
+            }
+            
+            // Загружаем счет пользователя из сохраненных данных (если есть)
+            fetch(`/api/user/${user.id}`)
+                .then(response => {
+                    if (response.ok) return response.json();
+                    throw new Error('Не удалось загрузить данные пользователя');
+                })
+                .then(data => {
+                    if (data && data.totalScore) {
+                        document.getElementById('user-score').textContent = `Счет: ${data.totalScore}`;
+                    }
+                })
+                .catch(error => {
+                    console.error('Ошибка при загрузке данных пользователя:', error);
+                });
+        }
+
+        // Инициализация WebSocket соединения
+        function initializeSocket() {
+            // Подключаемся к серверу
+            socket = io();
+            
+            // Обработка успешного подключения
+            socket.on('connect', () => {
+                console.log('Подключено к серверу');
+                
+                // Отправляем данные пользователя на сервер
+                if (userData) {
+                    socket.emit('join', userData);
+                }
+            });
+            
+            // Обработка события успешной авторизации
+            socket.on('joined', (data) => {
+                console.log('Авторизация прошла успешно', data);
+                
+                // Обновляем данные пользователя, если сервер что-то добавил
+                if (data.userData) {
+                    userData = { ...userData, ...data.userData };
+                    updateUserInterface(userData);
+                }
+            });
+            
+            // Обработка обновления списка комнат
+            socket.on('roomsUpdated', (rooms) => {
+                updateRoomsList(rooms);
+            });
+            
+            // Обработка события создания комнаты
+            socket.on('roomCreated', (data) => {
+                console.log('Комната создана', data);
+                // Перенаправляем пользователя в комнату
+                window.location.href = `/room.html?id=${data.roomId}`;
+            });
+            
+            // Обработка ошибок
+            socket.on('error', (error) => {
+                console.error('Ошибка:', error.message);
+                alert(`Ошибка: ${error.message}`);
+            });
+            
+            // Обработка отключения
+            socket.on('disconnect', () => {
+                console.log('Отключено от сервера');
+            });
+        }
+
+        // Настройка обработчиков событий для кнопок
+        function setupEventListeners() {
+            // Кнопка создания комнаты
+            document.getElementById('create-room-btn').addEventListener('click', () => {
+                if (socket && socket.connected) {
+                    socket.emit('createRoom');
+                } else {
+                    alert('Не удалось подключиться к серверу');
+                }
+            });
+            
+            // Кнопка присоединения к комнате
+            document.getElementById('join-room-btn').addEventListener('click', () => {
+                const roomsContainer = document.getElementById('rooms-container');
+                
+                // Загружаем доступные комнаты, если еще не загружены
+                if (socket && socket.connected) {
+                    fetch('/api/rooms')
+                        .then(response => response.json())
+                        .then(rooms => {
+                            updateRoomsList(rooms);
+                            
+                            // Показываем или скрываем контейнер с комнатами
+                            if (roomsContainer.style.display === 'block') {
+                                roomsContainer.style.display = 'none';
+                            } else {
+                                roomsContainer.style.display = 'block';
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Ошибка при загрузке комнат:', error);
+                            alert('Не удалось загрузить список комнат');
+                        });
+                } else {
+                    alert('Не удалось подключиться к серверу');
+                }
+            });
+            
+            // Кнопка таблицы лидеров
+            document.getElementById('leaderboard-btn').addEventListener('click', () => {
+                // Будет реализовано позже
+                alert('Таблица лидеров будет доступна в будущих обновлениях');
+            });
+        }
+
+        // Обновление списка доступных комнат
+        function updateRoomsList(rooms) {
+            const roomsList = document.getElementById('rooms-list');
+            
+            // Очищаем текущий список
+            roomsList.innerHTML = '';
+            
+            // Если комнат нет, показываем сообщение
+            if (Object.keys(rooms).length === 0) {
+                roomsList.innerHTML = '<p>Нет доступных комнат. Создайте свою!</p>';
+                return;
+            }
+            
+            // Добавляем каждую комнату в список
+            for (const roomId in rooms) {
+                const room = rooms[roomId];
+                
+                // Создаем элемент комнаты
+                const roomElement = document.createElement('div');
+                roomElement.className = 'room-item';
+                roomElement.dataset.roomId = roomId;
+                
+                // Получаем имя создателя комнаты
+                const creator = room.players.find(player => player.isCreator);
+                const creatorName = creator ? creator.username : 'Неизвестный';
+                
+                // Заполняем HTML для комнаты
+                roomElement.innerHTML = `
+                    <div class="room-header">
+                        <div class="room-id">Комната #${roomId}</div>
+                        <div class="room-players">${room.players.length}/${parseInt(process.env.MAX_PLAYERS_PER_ROOM) || 5}</div>
+                    </div>
+                    <div class="room-creator">Создатель: ${creatorName}</div>
+                `;
+                
+                // Добавляем обработчик клика для присоединения к комнате
+                roomElement.addEventListener('click', () => {
+                    if (socket && socket.connected) {
+                        socket.emit('joinRoom', roomId);
+                        // Перенаправляем пользователя в комнату
+                        window.location.href = `/room.html?id=${roomId}`;
+                    }
+                });
+                
+                // Добавляем комнату в список
+                roomsList.appendChild(roomElement);
+            }
+        }
+    </script>
+</body>
+</html> 

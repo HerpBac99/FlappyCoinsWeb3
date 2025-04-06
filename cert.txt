@@ -1,0 +1,158 @@
+# Инструкция по настройке SSL-сертификатов для проекта FlappyCoin
+
+## Подготовка окружения
+
+1. Убедитесь, что установлены Docker и Docker Compose
+2. Убедитесь, что ваш домен (например, flappy.keenetic.link) корректно настроен и указывает на IP-адрес вашего сервера
+3. Убедитесь, что порт 80 открыт и доступен из интернета (необходим для проверки владения доменом Let's Encrypt)
+
+## Шаг 1: Создание необходимых директорий и структуры проекта
+
+1. Создайте директорию для SSL-сертификатов:
+   ```
+   mkdir -p ssl
+   ```
+
+2. Создайте директорию для ACME-challenge (для проверки домена Let's Encrypt):
+   ```
+   mkdir -p acme-challenge
+   ```
+
+3. Создайте файл .env в корне проекта с правильными путями к сертификатам:
+   ```
+   # Настройки SSL
+   SSL_CERT_PATH=./ssl/live/[ваш_домен]/fullchain.pem
+   SSL_KEY_PATH=./ssl/live/[ваш_домен]/privkey.pem
+   ```
+
+## Шаг 2: Получение сертификатов Let's Encrypt
+
+### Вариант 1: Использование standalone-режима certbot
+
+1. Остановите все контейнеры, которые могут использовать порт 80:
+   ```
+   docker-compose down
+   ```
+
+2. Запустите certbot в standalone-режиме:
+   ```
+   docker run -it --rm -p 80:80 \
+     -v "$(pwd)/ssl:/etc/letsencrypt" \
+     certbot/certbot certonly --standalone \
+     -d [ваш_домен] --agree-tos --email [ваш_email]
+   ```
+   
+   В PowerShell используйте:
+   ```powershell
+   docker run -it --rm -p 80:80 `
+     -v "${PWD}/ssl:/etc/letsencrypt" `
+     certbot/certbot certonly --standalone `
+     -d [ваш_домен] --agree-tos --email [ваш_email]
+   ```
+
+3. После успешного получения сертификатов они будут сохранены в директории:
+   ```
+   ssl/live/[ваш_домен]/
+   ```
+
+### Вариант 2: Использование webroot-метода
+
+1. Запустите временный веб-сервер для обработки ACME-challenge:
+   ```
+   docker run -d --name temp-nginx -p 80:80 \
+     -v "$(pwd)/acme-challenge:/usr/share/nginx/html/.well-known/acme-challenge" \
+     nginx
+   ```
+
+2. Запустите certbot с методом webroot:
+   ```
+   docker run -it --rm \
+     -v "$(pwd)/acme-challenge:/var/www/certbot/.well-known/acme-challenge" \
+     -v "$(pwd)/ssl:/etc/letsencrypt" \
+     certbot/certbot certonly --webroot --webroot-path=/var/www/certbot \
+     -d [ваш_домен] --email [ваш_email] --agree-tos --no-eff-email
+   ```
+
+3. Остановите временный веб-сервер:
+   ```
+   docker stop temp-nginx && docker rm temp-nginx
+   ```
+
+## Шаг 3: Настройка приложения для использования сертификатов
+
+1. Проверьте наличие полученных сертификатов:
+   ```
+   ls -la ssl/live/[ваш_домен]/
+   ```
+   
+   Вы должны увидеть файлы:
+   - fullchain.pem (полная цепочка сертификатов)
+   - privkey.pem (приватный ключ)
+   - cert.pem (основной сертификат)
+   - chain.pem (промежуточные сертификаты)
+
+2. Убедитесь, что в вашем файле docker-compose.yml монтируются сертификаты:
+   ```yaml
+   volumes:
+     - ./ssl:/app/ssl:ro
+   ```
+
+3. Убедитесь, что в файле .env указаны правильные пути к сертификатам:
+   ```
+   SSL_CERT_PATH=./ssl/live/[ваш_домен]/fullchain.pem
+   SSL_KEY_PATH=./ssl/live/[ваш_домен]/privkey.pem
+   ```
+
+## Шаг 4: Запуск приложения с SSL
+
+1. Запустите ваше приложение:
+   ```
+   docker-compose up -d
+   ```
+
+2. Проверьте логи на наличие ошибок:
+   ```
+   docker-compose logs -f
+   ```
+
+3. Проверьте доступность вашего сайта по HTTPS в браузере:
+   ```
+   https://[ваш_домен]
+   ```
+
+## Шаг 5: Обновление сертификатов (каждые 90 дней)
+
+1. Для обновления сертификатов используйте команду:
+   ```
+   docker run --rm \
+     -v "$(pwd)/acme-challenge:/var/www/certbot/.well-known/acme-challenge" \
+     -v "$(pwd)/ssl:/etc/letsencrypt" \
+     certbot/certbot renew --webroot --webroot-path=/var/www/certbot
+   ```
+
+2. После обновления перезапустите контейнеры:
+   ```
+   docker-compose restart
+   ```
+
+## Решение проблем
+
+1. Если вы получаете ошибку "Failed to connect to [домен]:443", убедитесь, что порт 443 открыт в вашем фаерволе.
+
+2. Если в браузере вы видите ошибку "NET::ERR_CERT_AUTHORITY_INVALID", проверьте:
+   - Правильность путей к сертификатам в .env файле
+   - Наличие сертификатов в указанной директории
+   - Права доступа к файлам сертификатов (должны быть доступны для чтения)
+
+3. Если сервер запускается как HTTP вместо HTTPS, проверьте логи сервера:
+   ```
+   docker-compose logs app
+   ```
+   Ищите сообщения об ошибках чтения сертификатов.
+
+4. Для тестирования в локальной среде можно создать самоподписанные сертификаты:
+   ```
+   openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+     -keyout ssl/key.pem -out ssl/cert.pem \
+     -subj "/CN=[ваш_домен]/O=FlappyCoin/C=RU"
+   ``` 
