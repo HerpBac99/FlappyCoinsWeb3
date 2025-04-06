@@ -7,18 +7,6 @@ const http = require('http');
 const socketIO = require('socket.io');
 require('dotenv').config();
 
-// Импортируем модуль управления комнатами
-const { 
-    initRooms, 
-    createRoom, 
-    joinRoom, 
-    leaveRoom, 
-    setPlayerReady, 
-    getRooms, 
-    getRoom,
-    updatePlayerScore
-} = require('./rooms');
-
 // Проверяем существование файла с пользователями, если его нет - создаем пустой
 const usersFilePath = process.env.USERS_FILE_PATH || './server/telegramUsers.json';
 if (!fs.existsSync(usersFilePath)) {
@@ -63,9 +51,6 @@ const io = socketIO(server, {
     }
 });
 
-// Инициализация комнат
-initRooms();
-
 // Обработка подключений Socket.IO
 io.on('connection', (socket) => {
     console.log(`Новое соединение: ${socket.id}`);
@@ -95,11 +80,14 @@ io.on('connection', (socket) => {
             // Сохраняем обновленные данные
             fs.writeJsonSync(usersFilePath, users, { spaces: 2 });
             
+            // Сохраняем ID пользователя в объекте сокета для использования в других обработчиках
+            socket.userId = userData.id;
+            socket.userData = users[userData.id];
+            
             // Отправляем ответ клиенту
             socket.emit('joined', { success: true, userData: users[userData.id] });
             
-            // Сохраняем ID пользователя в объекте сокета для использования в других обработчиках
-            socket.userId = userData.id;
+            console.log(`Пользователь ${users[userData.id].username} (${userData.id}) авторизован`);
             
         } catch (error) {
             console.error('Ошибка при обработке события join:', error);
@@ -107,200 +95,78 @@ io.on('connection', (socket) => {
         }
     });
 
-    // Обработка события создания комнаты
-    socket.on('createRoom', () => {
-        if (!socket.userId) {
-            socket.emit('error', { message: 'Не авторизован' });
-            return;
-        }
-
-        try {
-            const users = fs.readJsonSync(usersFilePath);
-            const userData = users[socket.userId];
-            
-            if (!userData) {
-                socket.emit('error', { message: 'Пользователь не найден' });
-                return;
-            }
-
-            const room = createRoom(userData);
-            
-            // Присоединяем сокет к комнате
-            socket.join(`room_${room.id}`);
-            
-            // Отправляем информацию о созданной комнате
-            socket.emit('roomCreated', { roomId: room.id });
-            
-            // Обновляем список комнат для всех
-            io.emit('roomsUpdated', getRooms());
-            
-        } catch (error) {
-            console.error('Ошибка при создании комнаты:', error);
-            socket.emit('error', { message: 'Ошибка сервера при создании комнаты' });
-        }
-    });
-
-    // Обработка события присоединения к комнате
-    socket.on('joinRoom', (roomId) => {
-        if (!socket.userId) {
-            socket.emit('error', { message: 'Не авторизован' });
-            return;
-        }
-
-        try {
-            const users = fs.readJsonSync(usersFilePath);
-            const userData = users[socket.userId];
-            
-            if (!userData) {
-                socket.emit('error', { message: 'Пользователь не найден' });
-                return;
-            }
-
-            const result = joinRoom(roomId, userData);
-            
-            if (result.success) {
-                // Присоединяем сокет к комнате
-                socket.join(`room_${roomId}`);
-                
-                // Отправляем обновление всем в комнате
-                io.to(`room_${roomId}`).emit('roomUpdated', getRoom(roomId));
-                
-                // Обновляем список комнат для всех
-                io.emit('roomsUpdated', getRooms());
-            } else {
-                socket.emit('error', { message: result.error });
-            }
-            
-        } catch (error) {
-            console.error('Ошибка при присоединении к комнате:', error);
-            socket.emit('error', { message: 'Ошибка сервера при присоединении к комнате' });
-        }
-    });
-
-    // Обработка события готовности игрока
-    socket.on('ready', (roomId) => {
-        if (!socket.userId) {
-            socket.emit('error', { message: 'Не авторизован' });
-            return;
-        }
-
-        try {
-            const result = setPlayerReady(roomId, socket.userId);
-            
-            if (result.success) {
-                // Отправляем обновление всем в комнате
-                io.to(`room_${roomId}`).emit('roomUpdated', getRoom(roomId));
-                
-                // Если все игроки готовы, начинаем отсчет
-                if (result.allReady) {
-                    // Запускаем отсчет перед началом игры
-                    const countdownTime = parseInt(process.env.COUNTDOWN_TIME) || 3;
-                    let countdown = countdownTime;
-                    
-                    const countdownInterval = setInterval(() => {
-                        io.to(`room_${roomId}`).emit('countdown', countdown);
-                        countdown--;
-                        
-                        if (countdown < 0) {
-                            clearInterval(countdownInterval);
-                            io.to(`room_${roomId}`).emit('gameStart', getRoom(roomId));
-                        }
-                    }, 1000);
-                }
-            } else {
-                socket.emit('error', { message: result.error });
-            }
-            
-        } catch (error) {
-            console.error('Ошибка при установке готовности:', error);
-            socket.emit('error', { message: 'Ошибка сервера при установке готовности' });
-        }
-    });
-
-    // Обработка события обновления позиции игрока
-    socket.on('updatePosition', (data) => {
-        if (!socket.userId || !data.roomId) return;
-        
-        // Передаем всем в комнате, кроме отправителя
-        socket.to(`room_${data.roomId}`).emit('playerMoved', {
-            playerId: socket.userId,
-            position: data.position
-        });
-    });
-
-    // Обработка события обновления счета игрока
-    socket.on('updateScore', (data) => {
-        if (!socket.userId || !data.roomId) return;
-        
-        try {
-            // Обновляем счет игрока
-            updatePlayerScore(data.roomId, socket.userId, data.score);
-            
-            // Отправляем обновленные данные комнаты всем игрокам
-            io.to(`room_${data.roomId}`).emit('scoreUpdated', {
-                playerId: socket.userId,
-                score: data.score,
-                room: getRoom(data.roomId)
-            });
-        } catch (error) {
-            console.error('Ошибка при обновлении счета:', error);
-        }
-    });
-
     // Обработка события отключения
     socket.on('disconnect', () => {
         console.log(`Соединение закрыто: ${socket.id}`);
-        
-        if (socket.userId) {
-            try {
-                // Находим все комнаты игрока и выходим из них
-                const rooms = getRooms();
-                
-                for (const roomId in rooms) {
-                    if (rooms[roomId].players.some(p => p.id === socket.userId)) {
-                        const result = leaveRoom(roomId, socket.userId);
-                        
-                        if (result.success) {
-                            // Отправляем обновление всем в комнате
-                            io.to(`room_${roomId}`).emit('roomUpdated', getRoom(roomId));
-                        }
-                    }
-                }
-                
-                // Обновляем список комнат для всех
-                io.emit('roomsUpdated', getRooms());
-                
-            } catch (error) {
-                console.error('Ошибка при обработке отключения:', error);
-            }
-        }
     });
-});
-
-// API-эндпоинт для получения списка комнат
-app.get('/api/rooms', (req, res) => {
-    try {
-        res.json(getRooms());
-    } catch (error) {
-        console.error('Ошибка при получении списка комнат:', error);
-        res.status(500).json({ error: 'Ошибка сервера' });
-    }
 });
 
 // API-эндпоинт для получения данных пользователя
 app.get('/api/user/:id', (req, res) => {
     try {
+        console.log(`Запрос данных пользователя с ID: ${req.params.id}`);
+        
+        // Проверяем существование файла с пользователями
+        if (!fs.existsSync(usersFilePath)) {
+            console.log(`Файл с пользователями не найден: ${usersFilePath}`);
+            return res.status(404).json({ error: 'Данные пользователей не найдены' });
+        }
+        
         const users = fs.readJsonSync(usersFilePath);
         const userData = users[req.params.id];
         
         if (userData) {
+            console.log(`Данные пользователя найдены: ${req.params.id}`);
             res.json(userData);
         } else {
+            console.log(`Пользователь не найден: ${req.params.id}`);
             res.status(404).json({ error: 'Пользователь не найден' });
         }
     } catch (error) {
         console.error('Ошибка при получении данных пользователя:', error);
         res.status(500).json({ error: 'Ошибка сервера' });
+    }
+});
+
+// Обработчик для получения логов от клиента
+app.post('/api/log', (req, res) => {
+    try {
+        const logsData = req.body;
+        
+        if (!logsData || !logsData.logs || !Array.isArray(logsData.logs)) {
+            return res.status(400).json({ success: false, error: 'Некорректные данные логов' });
+        }
+        
+        // Получаем дополнительную информацию
+        const userAgent = logsData.userAgent || 'Неизвестно';
+        const timestamp = logsData.timestamp || new Date().toISOString();
+        const userData = logsData.userData || {};
+        
+        // Логируем на сервере
+        console.log('Получены логи от клиента:');
+        console.log(`Пользователь: ${userData.username || 'Неизвестно'} (${userData.id || 'Нет ID'})`);
+        console.log(`Всего логов: ${logsData.logs.length}`);
+        console.log(`Время: ${timestamp}`);
+        console.log(`User-Agent: ${userAgent}`);
+        
+        // Логируем ошибки, которые были в клиентских логах
+        const errorLogs = logsData.logs.filter(log => log.level === 'error');
+        if (errorLogs.length > 0) {
+            console.error('Ошибки на стороне клиента:');
+            errorLogs.forEach(log => {
+                console.error(`[${log.timestamp}] ${log.message} (${log.caller})`);
+                if (log.data) {
+                    console.error('Данные:', log.data);
+                }
+            });
+        }
+        
+        // Здесь можно добавить сохранение логов в базу данных или файл
+        
+        return res.json({ success: true });
+    } catch (error) {
+        console.error('Ошибка при обработке логов:', error);
+        return res.status(500).json({ success: false, error: 'Ошибка при обработке логов' });
     }
 });
 
