@@ -3,7 +3,20 @@
  */
 
 // Получаем доступ к Telegram WebApp API
-const tgApp = window.Telegram?.WebApp;
+let tgApp = window.Telegram.WebApp;
+
+// В начале файла telegram.js после объявления tgApp
+tgApp.expand();
+if (typeof tgApp.enableClosingConfirmation === 'function') {
+    tgApp.enableClosingConfirmation();
+} else if (typeof tgApp.disableClosingConfirmation === 'function') {
+    tgApp.disableClosingConfirmation();
+}
+
+// При возможности также проверить версию и вызвать новый метод
+if (tgApp.isVersionAtLeast && tgApp.isVersionAtLeast('6.9') && tgApp.requestFullscreen) {
+    tgApp.requestFullscreen();
+}
 
 /**
  * Инициализация полноэкранного режима для Telegram Mini App
@@ -241,4 +254,29 @@ window.safeCallTgMethod = safeCallTgMethod;
 // Автоматически инициализируем полноэкранный режим при загрузке скрипта
 document.addEventListener('DOMContentLoaded', () => {
     initTelegramFullscreen();
+    
+    // Дополнительно пытаемся развернуть окно несколько раз с задержкой
+    // Это может помочь в случаях, когда первый вызов не срабатывает
+    setTimeout(() => {
+        if (tgApp && tgApp.expand) {
+            if (window.appLogger) window.appLogger.info('Повторный вызов expand() через 300мс');
+            tgApp.expand();
+        }
+    }, 300);
+    
+    setTimeout(() => {
+        if (tgApp && tgApp.expand) {
+            if (window.appLogger) window.appLogger.info('Повторный вызов expand() через 1000мс');
+            tgApp.expand();
+        }
+    }, 1000);
+    
+    // Хак для iOS - принудительно устанавливаем высоту
+    setTimeout(() => {
+        const height = window.innerHeight;
+        document.body.style.height = `${height}px`;
+        document.documentElement.style.height = `${height}px`;
+        
+        if (window.appLogger) window.appLogger.info('Установлена явная высота документа', { height });
+    }, 500);
 }); 
