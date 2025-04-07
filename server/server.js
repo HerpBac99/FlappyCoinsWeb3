@@ -5,6 +5,7 @@ const fs = require('fs-extra');
 const https = require('https');
 const http = require('http');
 const socketIO = require('socket.io');
+const roomsManager = require('./rooms');
 require('dotenv').config();
 
 // Проверяем существование файла с пользователями, если его нет - создаем пустой
@@ -95,9 +96,183 @@ io.on('connection', (socket) => {
         }
     });
 
+    // Обработка события создания игровой комнаты
+    socket.on('createRoom', (playerData) => {
+        console.log(`Запрос на создание комнаты от игрока: ${JSON.stringify(playerData)}`);
+        
+        try {
+            // Проверяем валидность данных игрока
+            if (!playerData || !playerData.userId) {
+                socket.emit('error', { message: 'Неверные данные игрока' });
+                return;
+            }
+            
+            // Создаем новую комнату
+            const result = roomsManager.createRoom(playerData);
+            
+            // Добавляем сокет в комнату Socket.IO
+            socket.join(`room_${result.roomId}`);
+            
+            // Сохраняем ID комнаты в объекте сокета
+            socket.roomId = result.roomId;
+            
+            // Отправляем ответ клиенту
+            socket.emit('roomCreated', { 
+                roomId: result.roomId,
+                players: result.room.players
+            });
+            
+            console.log(`Комната создана: ${result.roomId}, игрок: ${playerData.username} (${playerData.userId})`);
+            
+        } catch (error) {
+            console.error('Ошибка при создании комнаты:', error);
+            socket.emit('error', { message: 'Ошибка при создании комнаты' });
+        }
+    });
+    
+    // Обработка события присоединения к комнате
+    socket.on('joinRoom', (data) => {
+        console.log(`Запрос на присоединение к комнате: ${JSON.stringify(data)}`);
+        
+        try {
+            // Проверяем валидность данных
+            if (!data || !data.roomId || !data.userId) {
+                socket.emit('error', { message: 'Неверные данные для присоединения к комнате' });
+                return;
+            }
+            
+            // Присоединяем игрока к комнате
+            const result = roomsManager.joinRoom(data.roomId, {
+                userId: data.userId,
+                username: data.username || 'Аноним',
+                photoUrl: data.photoUrl || 'assets/default-avatar.png'
+            });
+            
+            // Проверяем результат операции
+            if (!result.success) {
+                socket.emit('roomError', { 
+                    code: result.error, 
+                    message: result.message 
+                });
+                return;
+            }
+            
+            // Добавляем сокет в комнату Socket.IO
+            socket.join(`room_${data.roomId}`);
+            
+            // Сохраняем ID комнаты в объекте сокета
+            socket.roomId = data.roomId;
+            
+            // Отправляем ответ клиенту
+            socket.emit('roomJoined', { room: result.room });
+            
+            // Если это новый игрок, уведомляем остальных участников комнаты
+            if (result.isNewPlayer) {
+                // Находим данные нового игрока
+                const newPlayer = result.room.players.find(p => p.userId === data.userId);
+                
+                // Отправляем уведомление остальным участникам (кроме текущего)
+                socket.to(`room_${data.roomId}`).emit('playerJoined', {
+                    player: newPlayer,
+                    players: result.room.players
+                });
+            }
+            
+            console.log(`Игрок ${data.username} (${data.userId}) присоединился к комнате ${data.roomId}`);
+            
+        } catch (error) {
+            console.error('Ошибка при присоединении к комнате:', error);
+            socket.emit('error', { message: 'Ошибка при присоединении к комнате' });
+        }
+    });
+    
+    // Обработка события изменения статуса готовности
+    socket.on('toggleReady', (data) => {
+        console.log(`Запрос на изменение статуса готовности: ${JSON.stringify(data)}`);
+        
+        try {
+            // Проверяем валидность данных
+            if (!data || !data.roomId || !data.userId) {
+                socket.emit('error', { message: 'Неверные данные для изменения статуса' });
+                return;
+            }
+            
+            // Изменяем статус готовности игрока
+            const result = roomsManager.togglePlayerReady(data.roomId, data.userId, data.isReady);
+            
+            // Проверяем результат операции
+            if (!result.success) {
+                socket.emit('roomError', { 
+                    code: result.error, 
+                    message: result.message 
+                });
+                return;
+            }
+            
+            // Отправляем уведомление всем игрокам в комнате
+            io.to(`room_${data.roomId}`).emit('playerStatusChanged', {
+                userId: data.userId,
+                isReady: data.isReady
+            });
+            
+            console.log(`Статус игрока ${data.userId} в комнате ${data.roomId} изменен на: ${data.isReady ? 'готов' : 'не готов'}`);
+            
+            // Если все игроки готовы, запускаем обратный отсчет
+            if (result.allPlayersReady) {
+                console.log(`Все игроки в комнате ${data.roomId} готовы, запускаем обратный отсчет`);
+                
+                // Запускаем обратный отсчет
+                const countdownResult = roomsManager.startCountdown(data.roomId, (room) => {
+                    // Колбэк после окончания обратного отсчета - запуск игры
+                    io.to(`room_${data.roomId}`).emit('startGame', {
+                        roomId: data.roomId,
+                        players: room.players
+                    });
+                    
+                    console.log(`Игра в комнате ${data.roomId} запущена`);
+                });
+                
+                // Отправляем уведомление о запуске обратного отсчета
+                if (countdownResult.success) {
+                    io.to(`room_${data.roomId}`).emit('allPlayersReady', {
+                        countdownTime: countdownResult.countdownTime
+                    });
+                    
+                    console.log(`Обратный отсчет запущен в комнате ${data.roomId}`);
+                }
+            }
+            
+        } catch (error) {
+            console.error('Ошибка при изменении статуса готовности:', error);
+            socket.emit('error', { message: 'Ошибка при изменении статуса готовности' });
+        }
+    });
+    
     // Обработка события отключения
     socket.on('disconnect', () => {
-        console.log(`Соединение закрыто: ${socket.id}`);
+        console.log(`Соединение закрыто: ${socket.id}, userId: ${socket.userId}, roomId: ${socket.roomId}`);
+        
+        // Если игрок был в комнате, удаляем его из неё
+        if (socket.roomId && socket.userId) {
+            try {
+                // Удаляем игрока из комнаты
+                const result = roomsManager.removePlayer(socket.roomId, socket.userId);
+                
+                // Если комната не была удалена, уведомляем оставшихся игроков
+                if (result.success && !result.roomDeleted && !result.roomScheduledForDeletion) {
+                    io.to(`room_${socket.roomId}`).emit('playerLeft', {
+                        userId: socket.userId,
+                        username: result.player.username,
+                        players: result.room.players
+                    });
+                    
+                    console.log(`Игрок ${result.player.username} (${socket.userId}) покинул комнату ${socket.roomId}`);
+                }
+                
+            } catch (error) {
+                console.error('Ошибка при удалении игрока из комнаты:', error);
+            }
+        }
     });
 });
 

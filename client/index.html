@@ -2,43 +2,37 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>FlappyCoin</title>
-    <link rel="stylesheet" href="style/mainMenu.css">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&family=Montserrat:wght@400;500;600&display=swap" rel="stylesheet">
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <!-- Добавляем логирование -->
-    <script src="logger.js"></script>
-    <!-- Общие функции для работы с Telegram -->
-    <script src="telegram.js"></script>
+    <!-- Базовые стили -->
+    <link rel="stylesheet" href="style/app.css">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Подгружаем стили компонентов при необходимости через JS -->
 </head>
 <body>
-    <!-- Контейнер с данными пользователя -->
-    <div class="user-info">
-        <div class="user-photo">
-            <img id="user-avatar" src="assets/default-avatar.png" alt="Аватар">
-        </div>
-        <div class="user-details">
-            <div id="username" class="username">Загрузка...</div>
-            <div id="user-score" class="score">Счет: 0</div>
-        </div>
+    <!-- Загрузочный индикатор -->
+    <div id="loading-overlay">
+        <div class="spinner"></div>
+        <div class="loading-text">Загрузка FlappyCoin...</div>
     </div>
-
-    <!-- Центральный контейнер с анимацией монеты -->
-    <div class="center-container">
-        <div class="coin-animation">
-            <img id="coin-sprite" src="assets/bitcoin.png" alt="Монета">
-        </div>
-        <div class="app-title">
-            <h1>FlappyCoin</h1>
-            <p>Скоро открытие!</p>
-        </div>
-    </div>
-    <!-- Подключение Socket.IO -->
+    
+    <!-- Основной контейнер приложения -->
+    <div id="app-container"></div>
+    
+    <!-- Socket.IO клиент (должен загружаться первым) -->
     <script src="/socket.io/socket.io.js"></script>
-    <!-- Подключение основного скрипта -->
-    <script src="index.js"></script>
+    
+    <!-- Базовые сервисы -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="logger.js"></script>
+    <script src="telegram.js"></script>
+    <script src="services/socketService.js"></script>
+    
+    <!-- Компоненты -->
+    <script src="views/mainMenu.js"></script>
+    <script src="views/roomView.js"></script>
+    
+    <!-- Основной контроллер приложения -->
+    <script src="app.js"></script>
 </body>
 </html> 

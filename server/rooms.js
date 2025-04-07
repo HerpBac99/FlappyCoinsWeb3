@@ -1,0 +1,330 @@
+// Модуль для управления игровыми комнатами
+const { v4: uuidv4 } = require('uuid');
+
+// Хранилище комнат в памяти сервера
+const rooms = new Map();
+
+// Максимальное количество игроков в комнате
+const MAX_PLAYERS_PER_ROOM = 6;
+
+// Время обратного отсчета перед началом игры (в секундах)
+const COUNTDOWN_TIME = 5;
+
+// Добавляем хранилище таймеров удаления комнат
+const roomDeletionTimers = new Map();
+
+// Время ожидания перед удалением пустой комнаты (в миллисекундах)
+const ROOM_DELETION_TIMEOUT = 30000; // 30 секунд
+
+/**
+ * Создает новую игровую комнату и добавляет первого игрока
+ * @param {Object} player - Объект с данными игрока
+ * @returns {Object} - Объект с данными созданной комнаты
+ */
+function createRoom(player) {
+    // Генерируем уникальный ID для комнаты
+    const roomId = uuidv4().substring(0, 8);
+    
+    // Создаем объект комнаты
+    const room = {
+        id: roomId,
+        createdAt: new Date().toISOString(),
+        createdBy: player.userId,
+        players: [{
+            userId: player.userId,
+            username: player.username,
+            photoUrl: player.photoUrl,
+            isReady: false,
+            joinedAt: new Date().toISOString()
+        }],
+        isGameStarted: false,
+        countdown: null // Таймер обратного отсчета
+    };
+    
+    // Сохраняем комнату в Map
+    rooms.set(roomId, room);
+    
+    console.log(`Создана новая комната: ${roomId}, игрок: ${player.username} (${player.userId})`);
+    
+    return { roomId, room };
+}
+
+/**
+ * Добавляет игрока в существующую комнату
+ * @param {string} roomId - ID комнаты
+ * @param {Object} player - Объект с данными игрока
+ * @returns {Object} - Объект с результатом операции
+ */
+function joinRoom(roomId, player) {
+    // Проверяем существование комнаты
+    if (!rooms.has(roomId)) {
+        console.log(`Комната не найдена: ${roomId}`);
+        return { success: false, error: 'ROOM_NOT_FOUND', message: 'Комната не найдена' };
+    }
+    
+    const room = rooms.get(roomId);
+    
+    // Проверяем, не началась ли уже игра
+    if (room.isGameStarted) {
+        console.log(`Попытка присоединиться к уже начатой игре: ${roomId}`);
+        return { success: false, error: 'GAME_ALREADY_STARTED', message: 'Игра уже началась' };
+    }
+    
+    // Проверяем, не заполнена ли комната
+    if (room.players.length >= MAX_PLAYERS_PER_ROOM) {
+        console.log(`Комната заполнена: ${roomId}`);
+        return { success: false, error: 'ROOM_FULL', message: 'Комната заполнена' };
+    }
+    
+    // Проверяем, не присоединился ли игрок уже к комнате
+    const existingPlayerIndex = room.players.findIndex(p => p.userId === player.userId);
+    if (existingPlayerIndex !== -1) {
+        // Игрок уже в комнате, обновляем его данные
+        room.players[existingPlayerIndex] = {
+            ...room.players[existingPlayerIndex],
+            username: player.username,
+            photoUrl: player.photoUrl,
+            lastActive: new Date().toISOString()
+        };
+        console.log(`Игрок ${player.username} (${player.userId}) уже в комнате ${roomId}, обновлены данные`);
+        
+        return { success: true, room, isNewPlayer: false };
+    }
+    
+    // Добавляем игрока в комнату
+    room.players.push({
+        userId: player.userId,
+        username: player.username,
+        photoUrl: player.photoUrl,
+        isReady: false,
+        joinedAt: new Date().toISOString()
+    });
+    
+    console.log(`Игрок ${player.username} (${player.userId}) присоединился к комнате ${roomId}`);
+    
+    return { success: true, room, isNewPlayer: true };
+}
+
+/**
+ * Изменяет статус готовности игрока
+ * @param {string} roomId - ID комнаты
+ * @param {string} userId - ID игрока
+ * @param {boolean} isReady - Новый статус готовности
+ * @returns {Object} - Объект с результатом операции
+ */
+function togglePlayerReady(roomId, userId, isReady) {
+    // Проверяем существование комнаты
+    if (!rooms.has(roomId)) {
+        console.log(`Комната не найдена: ${roomId}`);
+        return { success: false, error: 'ROOM_NOT_FOUND', message: 'Комната не найдена' };
+    }
+    
+    const room = rooms.get(roomId);
+    
+    // Проверяем, не началась ли уже игра
+    if (room.isGameStarted) {
+        console.log(`Попытка изменить статус в уже начатой игре: ${roomId}`);
+        return { success: false, error: 'GAME_ALREADY_STARTED', message: 'Игра уже началась' };
+    }
+    
+    // Находим игрока в комнате
+    const playerIndex = room.players.findIndex(p => p.userId === userId);
+    if (playerIndex === -1) {
+        console.log(`Игрок ${userId} не найден в комнате ${roomId}`);
+        return { success: false, error: 'PLAYER_NOT_FOUND', message: 'Игрок не найден в комнате' };
+    }
+    
+    // Обновляем статус готовности игрока
+    room.players[playerIndex].isReady = isReady;
+    console.log(`Игрок ${room.players[playerIndex].username} (${userId}) изменил статус: ${isReady ? 'готов' : 'не готов'}`);
+    
+    // Проверяем, все ли игроки готовы
+    const allPlayersReady = room.players.length > 1 && room.players.every(p => p.isReady);
+    
+    return { 
+        success: true, 
+        room, 
+        player: room.players[playerIndex],
+        allPlayersReady
+    };
+}
+
+/**
+ * Запускает обратный отсчет перед началом игры
+ * @param {string} roomId - ID комнаты
+ * @param {Function} onCountdownEnd - Колбэк, вызываемый по окончанию отсчета
+ * @returns {Object} - Объект с результатом операции
+ */
+function startCountdown(roomId, onCountdownEnd) {
+    // Проверяем существование комнаты
+    if (!rooms.has(roomId)) {
+        console.log(`Комната не найдена: ${roomId}`);
+        return { success: false, error: 'ROOM_NOT_FOUND', message: 'Комната не найдена' };
+    }
+    
+    const room = rooms.get(roomId);
+    
+    // Проверяем, не началась ли уже игра
+    if (room.isGameStarted) {
+        console.log(`Попытка запустить обратный отсчет в уже начатой игре: ${roomId}`);
+        return { success: false, error: 'GAME_ALREADY_STARTED', message: 'Игра уже началась' };
+    }
+    
+    // Проверяем, не запущен ли уже обратный отсчет
+    if (room.countdown) {
+        console.log(`Обратный отсчет уже запущен для комнаты ${roomId}`);
+        return { success: true, countdownTime: COUNTDOWN_TIME };
+    }
+    
+    console.log(`Запуск обратного отсчета для комнаты ${roomId}`);
+    
+    // Запускаем обратный отсчет
+    room.countdown = setTimeout(() => {
+        // По окончанию отсчета запускаем игру
+        room.isGameStarted = true;
+        room.countdown = null;
+        
+        console.log(`Начало игры в комнате ${roomId}`);
+        
+        // Вызываем колбэк с данными комнаты
+        onCountdownEnd(room);
+    }, COUNTDOWN_TIME * 1000);
+    
+    return { success: true, countdownTime: COUNTDOWN_TIME };
+}
+
+/**
+ * Получает данные комнаты по ID
+ * @param {string} roomId - ID комнаты
+ * @returns {Object|null} - Объект комнаты или null, если комната не найдена
+ */
+function getRoom(roomId) {
+    return rooms.has(roomId) ? rooms.get(roomId) : null;
+}
+
+/**
+ * Удаляет игрока из комнаты
+ * @param {string} roomId - ID комнаты
+ * @param {string} userId - ID игрока
+ * @returns {Object} - Объект с результатом операции
+ */
+function removePlayer(roomId, userId) {
+    // Проверяем существование комнаты
+    if (!rooms.has(roomId)) {
+        console.log(`Комната не найдена: ${roomId}`);
+        return { success: false, error: 'ROOM_NOT_FOUND', message: 'Комната не найдена' };
+    }
+    
+    const room = rooms.get(roomId);
+    
+    // Находим индекс игрока в комнате
+    const playerIndex = room.players.findIndex(p => p.userId === userId);
+    if (playerIndex === -1) {
+        console.log(`Игрок ${userId} не найден в комнате ${roomId}`);
+        return { success: false, error: 'PLAYER_NOT_FOUND', message: 'Игрок не найден в комнате' };
+    }
+    
+    // Получаем данные игрока для лога
+    const player = room.players[playerIndex];
+    
+    // Удаляем игрока из комнаты
+    room.players.splice(playerIndex, 1);
+    console.log(`Игрок ${player.username} (${userId}) удален из комнаты ${roomId}`);
+    
+    // Если комната пуста, планируем её удаление с задержкой
+    if (room.players.length === 0) {
+        // Если есть активный таймер обратного отсчета, очищаем его
+        if (room.countdown) {
+            clearTimeout(room.countdown);
+            room.countdown = null;
+        }
+        
+        // Если уже есть таймер удаления комнаты, очищаем его
+        if (roomDeletionTimers.has(roomId)) {
+            clearTimeout(roomDeletionTimers.get(roomId));
+        }
+        
+        // Устанавливаем новый таймер на удаление комнаты
+        console.log(`Планирование удаления пустой комнаты ${roomId} через ${ROOM_DELETION_TIMEOUT/1000} секунд`);
+        const timerId = setTimeout(() => {
+            // Проверяем, что комната всё ещё пуста
+            if (rooms.has(roomId) && rooms.get(roomId).players.length === 0) {
+                console.log(`Удаление пустой комнаты ${roomId} по таймауту`);
+                rooms.delete(roomId);
+                roomDeletionTimers.delete(roomId);
+            }
+        }, ROOM_DELETION_TIMEOUT);
+        
+        // Сохраняем ID таймера
+        roomDeletionTimers.set(roomId, timerId);
+        
+        return { 
+            success: true, 
+            roomDeleted: false, // Комната не удаляется мгновенно
+            roomScheduledForDeletion: true,
+            player 
+        };
+    }
+    
+    // Если удаленный игрок был создателем комнаты, назначаем нового создателя
+    if (room.createdBy === userId) {
+        // Назначаем создателем первого оставшегося игрока
+        room.createdBy = room.players[0].userId;
+        console.log(`Новый создатель комнаты ${roomId}: ${room.players[0].username} (${room.createdBy})`);
+    }
+    
+    return { success: true, roomDeleted: false, room, player };
+}
+
+/**
+ * Получает список всех активных комнат
+ * @returns {Array} - Массив объектов комнат
+ */
+function getAllRooms() {
+    return Array.from(rooms.values());
+}
+
+/**
+ * Удаляет комнату по ID
+ * @param {string} roomId - ID комнаты
+ * @returns {boolean} - true, если комната была удалена, false если комнаты не существовало
+ */
+function deleteRoom(roomId) {
+    // Проверяем существование комнаты
+    if (!rooms.has(roomId)) {
+        console.log(`Попытка удаления несуществующей комнаты: ${roomId}`);
+        return false;
+    }
+    
+    // Если есть активный таймер, очищаем его
+    const room = rooms.get(roomId);
+    if (room.countdown) {
+        clearTimeout(room.countdown);
+    }
+    
+    // Если есть таймер удаления, очищаем его
+    if (roomDeletionTimers.has(roomId)) {
+        clearTimeout(roomDeletionTimers.get(roomId));
+        roomDeletionTimers.delete(roomId);
+    }
+    
+    // Удаляем комнату
+    const result = rooms.delete(roomId);
+    console.log(`Комната ${roomId} удалена`);
+    
+    return result;
+}
+
+// Экспортируем функции модуля
+module.exports = {
+    createRoom,
+    joinRoom,
+    togglePlayerReady,
+    startCountdown,
+    getRoom,
+    removePlayer,
+    getAllRooms,
+    deleteRoom,
+    MAX_PLAYERS_PER_ROOM,
+    COUNTDOWN_TIME
+};
