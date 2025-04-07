@@ -1,12 +1,21 @@
 {
+  "12345": {
+    "id": "12345",
+    "username": "TestUser",
+    "first_name": "Test",
+    "last_name": "User",
+    "photo_url": null,
+    "lastSeen": "2025-04-07T19:33:05.587Z",
+    "socketId": "UV5htkqMYmGtXos0AAAB"
+  },
   "251053908": {
     "id": 251053908,
     "username": "Herp_Bac9",
     "first_name": "Herp_Bac9",
     "last_name": "",
     "photo_url": "https://t.me/i/userpic/320/s4n98ESjhsRia-U2dwj8J5nxsCrN_wMTrRgKhEn1z_0.svg",
-    "lastSeen": "2025-04-07T16:22:41.072Z",
-    "socketId": "mFuXOoP-EeToKbpUAAAH"
+    "lastSeen": "2025-04-07T19:32:11.181Z",
+    "socketId": "rW6NA08WJ6YLRA8LAAAG"
   },
   "568613134": {
     "id": 568613134,
@@ -14,7 +23,7 @@
     "first_name": "Ksenia",
     "last_name": "",
     "photo_url": "https://t.me/i/userpic/320/eUqh3RBAHoZQ97-4lunhrq7oLs0MxOuXJ71rEOe__6s.svg",
-    "lastSeen": "2025-04-07T16:18:16.214Z",
-    "socketId": "XD8jeKRlLTOOOBGqAAAF"
+    "lastSeen": "2025-04-07T19:39:42.230Z",
+    "socketId": "wY745uKkJs9eSLNpAAAL"
   }
 }

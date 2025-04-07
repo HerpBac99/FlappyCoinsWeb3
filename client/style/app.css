@@ -1,7 +1,7 @@
 /* Общие стили для всего SPA приложения */
 :root {
-    --primary-color: #3498db;
-    --secondary-color: #2ecc71;
+    --primary-color: #3498db; /* Основной цвет*/
+    --secondary-color: #2ecc71; /* Вторичный цвет*/
     --background-color: #1e272e;
     --text-color: #ecf0f1;
     --border-color: #34495e;
@@ -118,8 +118,8 @@ body {
 }
 
 .error-message button:hover {
-    background-color: #f0f0f0;
-    transform: translateY(-2px);
+    background-color: #f0f0f0; /* Цвет кнопки при наведении */
+    transform: translateY(-2px); /* Легкое смещение кнопки при наведении */
 }
 
 .error-message button:active {
@@ -128,16 +128,30 @@ body {
 
 /* Общие стили для кнопок */
 button {
-    background-color: var(--secondary-color);
-    color: white;
-    border: none;
-    border-radius: 50px;
-    padding: 12px 30px;
-    font-size: 16px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+    background-color: var(--secondary-color); /* Основной цвет фона кнопки */
+    color: white; /* Цвет текста кнопки */  
+    border: none; /* Убираем стандартную рамку */
+    border-radius: 50px; /* Скругление углов для современного вида */
+    padding: 12px 30px; /* Внутренние отступы для комфортного размера */
+    font-size: 16px; /* Размер шрифта */
+    font-weight: 600; /* Жирность шрифта для лучшей читаемости */
+    cursor: pointer; /* Курсор-указатель при наведении */
+    transition: all 0.3s ease; /* Плавные переходы для всех анимируемых свойств */
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2); /* Тень для эффекта "подъема" */
+    user-select: none; /* Отключение выделения текста */
+    overflow: hidden; /* Поведение при переполнении */
+    text-align: center; /* Позиционирование текста */
+    text-transform: uppercase; /* Трансформация текста */
+    letter-spacing: 1px; /* Межбуквенное расстояние */
+    min-width: 120px; /* Минимальная ширина кнопки */
+    max-width: 300px; /* Максимальная ширина кнопки */
+    vertical-align: middle; /* Выравнивание по линии */
+    line-height: 1.5; /* Отступ между строками */
+    text-overflow: ellipsis; /* Обрезка текста при переполнении */
+    white-space: nowrap; /* Запрет переноса текста */
+    opacity: 1; /* Прозрачность */
+    z-index: 1; /* Порядок слоев */
+    position: relative; /* Положение относительно других элементов */
 }
 
 button:hover {

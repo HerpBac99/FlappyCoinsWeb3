@@ -20,17 +20,15 @@
 
         <!-- Центральный контейнер с анимацией монеты -->
         <div class="center-container">
+            <div class="app-title">
+                <h1>FlappyCoin</h1>
+            </div>
             <div class="coin-animation">
                 <img id="coin-sprite" src="assets/bitcoin.png" alt="Монета">
             </div>
-            <div class="app-title">
-                <h1>FlappyCoin</h1>
-                <p>Многопользовательская игра</p>
-            </div>
-            
             <!-- Кнопки меню -->
             <div class="menu-buttons">
-                <button id="play-button" class="play-button">Играть</button>
+                <button id="play-button" class="play-button">ИГРАТЬ</button>
             </div>
         </div>
     `;
@@ -144,7 +142,7 @@
             const playButton = document.getElementById('play-button');
             if (playButton) {
                 // Убедимся, что текст кнопки установлен явно
-                playButton.textContent = 'Играть';
+                playButton.textContent = 'ИГРАТЬ';
                 
                 playButton.addEventListener('click', () => {
                     // Логируем нажатие на кнопку

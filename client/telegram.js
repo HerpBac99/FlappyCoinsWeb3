@@ -94,9 +94,6 @@ function initTelegramFullscreen() {
             }
         });
         
-        // Применяем цветовую тему Telegram
-        applyTelegramTheme();
-        
         console.log('Успешная инициализация полноэкранного режима');
         return true;
     } catch (error) {
@@ -192,56 +189,6 @@ function safeCallTgMethod(tgApp, methodName, args) {
     } catch (error) {
         console.error(`Ошибка при вызове метода ${methodName}:`, error);
         return null;
-    }
-}
-
-/**
- * Применяет цветовую тему Telegram к странице
- */
-function applyTelegramTheme() {
-    if (!tgApp) return;
-    
-    try {
-        let bgColor, textColor, accentColor, secondaryColor;
-        
-        // Определяем основные цвета в зависимости от темы
-        if (tgApp.colorScheme === 'dark') {
-            // Темная тема
-            bgColor = tgApp.themeParams?.bg_color || '#1E272E';
-            textColor = tgApp.themeParams?.text_color || '#FFFFFF';
-            accentColor = tgApp.themeParams?.button_color || '#3498DB';
-            secondaryColor = tgApp.themeParams?.button_text_color || '#2ECC71';
-            
-            // Добавляем класс темной темы
-            document.body.classList.add('dark-theme');
-            document.body.classList.remove('light-theme');
-        } else {
-            // Светлая тема
-            bgColor = tgApp.themeParams?.bg_color || '#FFFFFF';
-            textColor = tgApp.themeParams?.text_color || '#222222';
-            accentColor = tgApp.themeParams?.button_color || '#3498DB';
-            secondaryColor = tgApp.themeParams?.button_text_color || '#2ECC71';
-            
-            // Добавляем класс светлой темы
-            document.body.classList.add('light-theme');
-            document.body.classList.remove('dark-theme');
-        }
-        
-        // Применяем CSS переменные для использования в стилях
-        document.documentElement.style.setProperty('--background-color', bgColor);
-        document.documentElement.style.setProperty('--text-color', textColor);
-        document.documentElement.style.setProperty('--primary-color', accentColor);
-        document.documentElement.style.setProperty('--secondary-color', secondaryColor);
-        
-        // Применяем основные стили напрямую
-        if (tgApp.themeParams) {
-            document.body.style.backgroundColor = bgColor;
-            document.body.style.color = textColor;
-        }
-        
-        console.log(`Применена тема Telegram: ${tgApp.colorScheme}`);
-    } catch (error) {
-        console.error('Ошибка при применении темы Telegram:', error);
     }
 }
 
