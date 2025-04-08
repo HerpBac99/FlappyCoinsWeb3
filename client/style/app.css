@@ -1,44 +1,52 @@
 /* Общие стили для всего SPA приложения */
 :root {
-    --primary-color: #3498db; /* Основной цвет*/
-    --secondary-color: #2ecc71; /* Вторичный цвет*/
-    --background-color: #1e272e;
-    --text-color: #ecf0f1;
-    --border-color: #34495e;
-    --button-hover-color: #2980b9;
-    --error-color: #f44336;
-    --success-color: #4caf50;
-    --warning-color: #ff9800;
+    /* Основные цвета */
+    --primary-color: #36a4e4; /* Основной цвет*/
+    --background-color: #1e272e; /* Фон*/
+    --text-color: #ecf0f1; /* Цвет текста*/
+    --border-color: #26415c; /* Цвет границы*/
+    --border-radius: 8px; /* Скругление углов*/
+    
+    /* Шрифты */
+    --main-font: 'Press Start 2P', monospace; /* Пиксельный шрифт для игрового стиля */
+    --fallback-font: 'Montserrat', Arial, sans-serif; /* Запасной шрифт */
 }
 
+/* Глобальное применение шрифта */
+html {
+    font-family: var(--main-font);
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    background-color: var(--background-color); /* Устанавливаем фон*/
+    background-image: url('../assets/main-menu.png'); /* Устанавливаем фон картинку из папки assets*/
+    background-size: cover; /* Устанавливаем размер фона cover - заполняет всю область, не нарушая пропорции*/
+    background-position: center; /* Устанавливаем позицию фона center - центрирует изображение*/
+    background-repeat: no-repeat; /* Устанавливаем повторение фона no-repeat - не повторяет изображение*/
+    color: var(--text-color); /* Устанавливаем цвет текста */
+    min-height: 100vh; /* Устанавливаем минимальную высоту*/
+    height: 100vh; /* Фиксированная высота для полноэкранного режима */
+    overflow: hidden; /* Устанавливаем overflow hidden - скрывает все, что выходит за пределы элемента*/
+    display: flex; /* Устанавливаем display flex - делает элемент контейнером и позволяет использовать flexbox*/
+    flex-direction: column; /* Устанавливаем flex-direction column - делает элементы контейнера вертикальной колонкой*/
+    justify-content: center; /* Центрирование содержимого по вертикали*/
+    align-items: center; /* Центрирование содержимого по горизонтали*/  
+}
+
+/* Базовые стили для всех элементов */
 * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
-    font-family: 'Montserrat', Arial, sans-serif;
-}
-
-html, body {
-    width: 100%;
-    height: 100%;
-    overflow: hidden;
-}
-
-body {
-    background-color: var(--background-color);
-    color: var(--text-color);
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-start;
-    align-items: center;
+    font-family: inherit;
 }
 
 /* Контейнер приложения */
 #app-container {
     width: 100%;
     height: 100%;
-    display: flex;
-    flex-direction: column;
     overflow: hidden;
     position: relative;
 }
@@ -50,7 +58,6 @@ body {
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(0, 0, 0, 0.8);
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -63,7 +70,7 @@ body {
     height: 50px;
     border-radius: 50%;
     border: 5px solid rgba(255, 255, 255, 0.3);
-    border-top-color: var(--secondary-color);
+    border-top-color: var(--primary-color);
     animation: spin 1s infinite linear;
 }
 
@@ -128,23 +135,22 @@ body {
 
 /* Общие стили для кнопок */
 button {
-    background-color: var(--secondary-color); /* Основной цвет фона кнопки */
-    color: white; /* Цвет текста кнопки */  
+    background-color: var(--primary-color); /* Основной цвет фона кнопки */
+    color: var(--text-color); /* Цвет текста кнопки */  
     border: none; /* Убираем стандартную рамку */
-    border-radius: 50px; /* Скругление углов для современного вида */
-    padding: 12px 30px; /* Внутренние отступы для комфортного размера */
+    border-radius: var(--border-radius); /* Скругление углов для современного вида */
+    padding: 12px 16px; /* Внутренние отступы для комфортного размера */
     font-size: 16px; /* Размер шрифта */
     font-weight: 600; /* Жирность шрифта для лучшей читаемости */
-    cursor: pointer; /* Курсор-указатель при наведении */
     transition: all 0.3s ease; /* Плавные переходы для всех анимируемых свойств */
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2); /* Тень для эффекта "подъема" */
     user-select: none; /* Отключение выделения текста */
     overflow: hidden; /* Поведение при переполнении */
     text-align: center; /* Позиционирование текста */
     text-transform: uppercase; /* Трансформация текста */
-    letter-spacing: 1px; /* Межбуквенное расстояние */
+    letter-spacing: 1.5px; /* Межбуквенное расстояние */
     min-width: 120px; /* Минимальная ширина кнопки */
-    max-width: 300px; /* Максимальная ширина кнопки */
+    max-width: 150px; /* Максимальная ширина кнопки */
     vertical-align: middle; /* Выравнивание по линии */
     line-height: 1.5; /* Отступ между строками */
     text-overflow: ellipsis; /* Обрезка текста при переполнении */
@@ -154,12 +160,7 @@ button {
     position: relative; /* Положение относительно других элементов */
 }
 
-button:hover {
-    background-color: #27ae60;
-    transform: translateY(-3px);
-    box-shadow: 0 6px 10px rgba(0, 0, 0, 0.3);
-}
-
+/* Кнопка при нажатии */
 button:active {
     transform: translateY(0);
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);

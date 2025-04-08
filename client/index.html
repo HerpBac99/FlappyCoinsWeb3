@@ -4,23 +4,54 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>FlappyCoin</title>
+    <!-- Подключаем шрифты -->
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
     <!-- Базовые стили -->
     <link rel="stylesheet" href="style/app.css">
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style/mainMenu.css">
+    <link rel="stylesheet" href="style/room.css">
 </head>
 <body>
     <!-- Загрузочный индикатор -->
-    <div id="loading-overlay">
+    <!-- <div id="loading-overlay">
         <div class="spinner"></div>
         <div class="loading-text">Загрузка FlappyCoin...</div>
-    </div>
+    </div> -->
     
     <!-- Основной контейнер приложения -->
-    <div id="app-container"></div>
+    <div id="app-container">
+        <!-- Главное меню (скрыто по умолчанию) -->
+        <div id="main-menu" class="screen" style="display: none;">
+            <header class="user-info">
+                <figure class="user-photo">
+                    <img id="user-avatar" src="assets/default-avatar.png" alt="Аватар пользователя">
+                </figure>
+                <section class="user-details">
+                    <h2 id="username" class="username">Загрузка...</h2>
+                    <p id="user-score" class="score">Счет: 0</p>
+                </section>
+            </header>
+
+            <main class="center-container">
+                <h1 class="app-title">FlappyCoin</h1>
+                <figure class="coin-animation">
+                    <img id="coin-sprite" src="assets/bitcoin.png" alt="Анимированная монета">
+                </figure>
+                <nav class="menu-buttons">
+                    <button id="play-button" class="play-button" type="button">ИГРАТЬ</button>
+                </nav>
+            </main>
+        </div>
+
+        <!-- Комната (скрыта по умолчанию) -->
+        <div id="room" class="screen" style="display: none;">
+            <!-- Содержимое комнаты будет загружено динамически -->
+        </div>
+    </div>
     
     <!-- Socket.IO клиент (должен загружаться первым) -->
-    <script src="/socket.io/socket.io.js"></script>
+    <script src="socket.io/socket.io.js"></script>
     
     <!-- Базовые сервисы -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>

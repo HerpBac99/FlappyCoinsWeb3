@@ -1,46 +1,3 @@
-/* Общие стили */
-:root {
-    --primary-color: #40a7e3; /* Основной цвет*/
-    --secondary-color: #116596; /* Вторичный цвет*/
-    --background-color: #1e272e; /* Фон*/
-    --text-color: #ecf0f1; /* Цвет текста*/
-    --border-color: #26415c; /* Цвет границы*/
-    --button-hover-color: #2980b9; /* Цвет кнопки при наведении*/
-    --border-radius: 8px; /* Скругление углов*/
-    /* Основной шрифт для всего приложения */
-    --main-font: 'Press Start 2P', monospace; /* Пиксельный шрифт для игрового стиля */
-    --fallback-font: 'Montserrat', Arial, sans-serif; /* Запасной шрифт */
-}
-
-/* Применяем основной шрифт ко всем элементам */
-html {
-    font-family: var(--main-font); /* Устанавливаем основной шрифт для всего документа */
-}
-
-/* Сброс стилей для всех элементов */
-* {
-    margin: 0; /* Убираем внешние отступы со всех сторон (top, right, bottom, left) */  
-    padding: 0; /* Убираем внутренние отступы со всех сторон (top, right, bottom, left) */ 
-    box-sizing: border-box; /* Устанавливаем box-sizing: border-box чтобы padding и border не увеличивали общий размер элемента */
-    font-family: 'Press Start 2P', monospace; /* Устанавливаем пиксельный шрифт Press Start 2P, если не доступен - используем системный моноширинный шрифт */
-}
-
-body {
-    background-color: var(--background-color); /* Устанавливаем фон*/
-    background-image: url('../assets/main-menu.png'); /* Устанавливаем фон картинку из папки assets*/
-    background-size: cover; /* Устанавливаем размер фона cover - заполняет всю область, не нарушая пропорции*/
-    background-position: center; /* Устанавливаем позицию фона center - центрирует изображение*/
-    background-repeat: no-repeat; /* Устанавливаем повторение фона no-repeat - не повторяет изображение*/
-    color: var(--text-color); /* Устанавливаем цвет текста */
-    min-height: 100vh; /* Устанавливаем минимальную высоту*/
-    height: 100vh; /* Фиксированная высота для полноэкранного режима */
-    overflow: hidden; /* Устанавливаем overflow hidden - скрывает все, что выходит за пределы элемента*/
-    display: flex; /* Устанавливаем display flex - делает элемент контейнером и позволяет использовать flexbox*/
-    flex-direction: column; /* Устанавливаем flex-direction column - делает элементы контейнера вертикальной колонкой*/
-    justify-content: center; /* Центрирование содержимого по вертикали*/
-    align-items: center; /* Центрирование содержимого по горизонтали*/  
-}
-
 /* Шапка с данными пользователя */
 .user-info {
     display: flex; /* Устанавливаем display flex - делает элемент контейнером и позволяет использовать flexbox*/
@@ -92,10 +49,15 @@ body {
 
 /* Заголовок приложения */
 .app-title {
-    margin-top: 0; /* Убираем верхний отступ */
-    text-align: center; /* Устанавливаем text-align center - центрирует текст*/
-    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.7); /* Устанавливаем text-shadow 0 2px 10px rgba(0, 0, 0, 0.7) - тень текста*/
-    z-index: 2; /* Устанавливаем z-index выше, чем у анимации, чтобы текст был выше */
+    text-align: center;
+    color: var(--text-color);
+    font-size: 32px;
+    font-weight: bold;
+    animation: glow 3s ease-in-out infinite;
+    letter-spacing: 2px;
+    margin-bottom: 20px;
+    z-index: 10;
+    position: relative;
 }
 
 /* Заголовок приложения */
@@ -109,6 +71,7 @@ body {
 
 /* Центральный контейнер с монетой */
 .center-container {
+    margin-top: 200px;
     flex: 1; /* Устанавливаем flex 1 - заставляет элемент занимать все доступное пространство */
     display: flex; /* Устанавливаем display flex - делает элемент flex-контейнером */
     flex-direction: column; /* Устанавливаем flex-direction column - делает элементы контейнера вертикальной колонкой*/
@@ -161,19 +124,25 @@ body {
 /* Анимация свечения заголовка */
 @keyframes glow {
     0% {
-        text-shadow: 0 0 5px rgba(46, 204, 113, 0.5); /* Устанавливаем text-shadow 0 0 5px rgba(46, 204, 113, 0.5) - тень текста*/
+        text-shadow: 0 0 10px rgba(64, 167, 227, 0.7); /* Используем основной цвет */
+    }
+    25% {
+        text-shadow: 0 0 20px rgba(64, 167, 227, 0.8), 0 0 30px rgba(64, 167, 227, 0.6);
     }
     50% {
-        text-shadow: 0 0 20px rgba(46, 204, 113, 0.8); /* Устанавливаем text-shadow 0 0 20px rgba(46, 204, 113, 0.8) - тень текста*/
+        text-shadow: 0 0 30px rgba(64, 167, 227, 0.9), 0 0 40px rgba(64, 167, 227, 0.7), 0 0 50px rgba(64, 167, 227, 0.5);
+    }
+    75% {
+        text-shadow: 0 0 20px rgba(64, 167, 227, 0.8), 0 0 30px rgba(64, 167, 227, 0.6);
     }
     100% {
-        text-shadow: 0 0 5px rgba(46, 204, 113, 0.5); /* Устанавливаем text-shadow 0 0 5px rgba(46, 204, 113, 0.5) - тень текста*/  
+        text-shadow: 0 0 10px rgba(64, 167, 227, 0.7);
     }
 }
 
 /* Адаптивный дизайн - уменьшаем размеры элементов для мобильных устройств с экраном меньше 768px */
 @media (max-width: 768px) {
-    .app-title h1 {
+    .app-title  {
         font-size: 28px; /* Уменьшаем размер заголовка для лучшей читаемости на маленьких экранах */
     }
     
@@ -189,54 +158,6 @@ body {
     display: flex; /* Устанавливаем display flex - делает элемент контейнером и позволяет использовать flexbox*/
     flex-direction: column; /* Устанавливаем flex-direction column - делает элементы контейнера вертикальной колонкой*/
     align-items: center; /* Устанавливаем align-items center - центрирует содержимое по горизонтали*/
-}
-
-/* Кнопка "Играть"*/
-.play-button {
-    background-color: var(--primary-color); /* Устанавливаем background-color var(--secondary-color) - цвет фона*/
-    color: var(--text-color); /* Устанавливаем color var(--text-color) - цвет текста*/
-    border: none; /* Устанавливаем border none - отсутствие границы*/
-    border-radius: var(--border-radius); /* Устанавливаем border-radius 50px - скругление углов*/
-    padding: 10px 20px; /* Устанавливаем padding 12px 40px - отступы внутри элемента, чтобы кнопка не занимала много места*/
-    font-size: 16px; /* Устанавливаем font-size 18px - размер шрифта*/
-    font-weight: 600; /* Устанавливаем font-weight 600 - жирность шрифта*/
-    cursor: pointer; /* Устанавливаем cursor pointer - курсор*/
-    transition: all 0.3s ease; /* Устанавливаем transition all 0.3s ease - анимация*/
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3); /* Устанавливаем box-shadow 0 4px 6px rgba(0, 0, 0, 0.3) - тень*/
-    text-transform: uppercase; /* Устанавливаем text-transform uppercase - преобразование текста*/
-    letter-spacing: 1px; /* Устанавливаем letter-spacing 1px - межбуквенный интервал*/
-    position: relative; /* Устанавливаем position relative - позиционирует элемент относительно ближайшего позиционированного родителя*/
-    overflow: hidden; /* Устанавливаем overflow hidden - скрывает все, что выходит за пределы элемента*/
-    min-width: 120px; /* Устанавливаем min-width 200px - минимальная ширина элемента*/
-}
-
-/* Кнопка "Играть" до нажатия*/
-.play-button:before {
-    content: ''; /* Устанавливаем content '' - содержимое элемента*/
-    position: absolute; /* Устанавливаем position absolute - позиционирует элемент относительно ближайшего позиционированного родителя*/
-    top: 0; /* Устанавливаем top 0 - отступ сверху*/
-    left: -100%; /* Устанавливаем left -100% - отступ слева*/
-    width: 100%; /* Устанавливаем width 100% - ширина элемента*/
-    height: 100%; /* Устанавливаем height 100% - высота элемента*/
-    background: linear-gradient(
-        90deg,
-        rgba(255, 255, 255, 0) 0%,
-        rgba(255, 255, 255, 0.2) 50%,
-        rgba(255, 255, 255, 0) 100%
-    );
-    transition: left 0.5s ease;
-}
-
-/* Кнопка "Играть" при наведении*/
-.play-button:hover {
-    background-color: var(--secondary-color); /* Устанавливаем background-color #27ae60 - цвет фона*/
-    transform: translateY(-3px); /* Устанавливаем transform translateY(-3px) - смещение по вертикали*/
-    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.4); /* Устанавливаем box-shadow 0 6px 12px rgba(0, 0, 0, 0.4) - тень*/
-}
-
-/* Кнопка "Играть" после нажатия*/
-.play-button:hover:before {
-    left: 100%;
 }
 
 /* Кнопка "Играть" при нажатии*/

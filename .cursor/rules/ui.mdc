@@ -3,12 +3,45 @@ description:
 globs: *.html*,*.css*
 alwaysApply: false
 ---
+---
+description: Правила для HTML-файлов — структура, семантика, интеграция с Telegram WebApp
+globs: *.html*,*.css*
+alwaysApply: false
+---
 
-# Your rule content
+# Правила для HTML
 
-**Если файл относится к дизайн логике, то**
-##Следуй UI-гайдам Telegram: https://core.telegram.org/bots/webapps#designing-mini-apps
-##Интерфейс должен быть адаптивным, соответствовать тёмной/светлой теме Telegram
-##Минимизируй количество пользовательских стилей — используй встроенные компоненты Telegram WebApp
-##Избегай фиксированной ширины и высоты, используй `100%`, `vh`, `vw`
-##Поддерживай мобильные устройства, не используйте `hover`-зависимые элементы
+- ✅ Используй **семантически корректные теги** (например, `<main>`, `<section>`, `<button>`)
+- ✅ Структура страницы должна быть **адаптирована под мобильные устройства**
+- ✅ Подключай Telegram WebApp через `<script src="https://telegram.org/js/telegram-web-app.js"></script>`
+- ✅ Поддерживай тёмную тему через Telegram WebApp API (`tg.themeParams`)
+- 🚫 Не вставляй CSS внутрь HTML, подключай его отдельно через `<link>`
+
+---
+
+## 🔗 Документация
+
+- Telegram WebApp JS API: https://core.telegram.org/bots/webapps#webapp  
+- MDN HTML: https://developer.mozilla.org/en-US/docs/Web/HTML  
+- Telegram Design Guidelines: https://core.telegram.org/bots/webapps#design-guidelines  
+- Telegram Best Practices: https://core.telegram.org/bots/webapps#best-practices
+
+# Правила для CSS
+
+- ✅ Следуй **гайдлайнам Telegram** по дизайну мини-приложений
+- ✅ Используй **адаптивную верстку**: `flex`, `grid`, `media queries`
+- ✅ Поддерживай переменные Telegram WebApp (`--tg-theme-bg-color`, и т.д.)
+- ✅ Поддерживай **светлую и тёмную тему** на основе Telegram `themeParams`
+- ✅ Используй отдельные классы, не пиши `style=""` в HTML
+- 🚫 Не используй `!important` без крайней необходимости
+- 🚫 Не смешивай логические и визуальные правила в одном классе
+
+---
+
+## 🔗 Документация
+
+- Telegram Design Guidelines: https://core.telegram.org/bots/webapps#design-guidelines  
+- Telegram UX Best Practices: https://core.telegram.org/bots/webapps#best-practices  
+- MDN CSS: https://developer.mozilla.org/en-US/docs/Web/CSS  
+- Flexbox Guide: https://css-tricks.com/snippets/css/a-guide-to-flexbox/  
+- Переменные темы Telegram: https://core.telegram.org/bots/webapps#themeparams

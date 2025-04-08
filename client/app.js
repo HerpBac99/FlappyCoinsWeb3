@@ -125,6 +125,12 @@ function showScreen(screenId, params = {}) {
             return;
         }
         
+        // Скрываем все экраны
+        const allScreens = document.querySelectorAll('.screen');
+        allScreens.forEach(screen => {
+            screen.style.display = 'none';
+        });
+        
         // Если текущий экран тот же самый, просто обновляем его
         if (currentScreen && currentScreen.id === screenId) {
             appLogger.debug('Обновление текущего экрана', { screenId });
@@ -140,9 +146,6 @@ function showScreen(screenId, params = {}) {
             currentScreen.component.cleanup();
         }
         
-        // Очищаем контейнер
-        appContainer.innerHTML = '';
-        
         // Сохраняем историю переходов
         if (currentScreen) {
             appState.screenHistory.push(currentScreen.id);
@@ -150,6 +153,12 @@ function showScreen(screenId, params = {}) {
         
         // Обновляем текущий экран
         currentScreen = screens[screenId];
+        
+        // Показываем выбранный экран
+        const screenElement = document.getElementById(screenId);
+        if (screenElement) {
+            screenElement.style.display = 'block';
+        }
         
         // Инициализируем новый экран
         currentScreen.component.init(appContainer, { 

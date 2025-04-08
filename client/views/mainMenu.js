@@ -5,35 +5,7 @@
 
 // Создаем компонент с помощью IIFE, чтобы изолировать переменные
 (function() {
-    // HTML-шаблон главного меню
-    const mainMenuTemplate = `
-        <!-- Контейнер с данными пользователя -->
-        <div class="user-info">
-            <div class="user-photo">
-                <img id="user-avatar" src="assets/default-avatar.png" alt="Аватар">
-            </div>
-            <div class="user-details">
-                <div id="username" class="username">Загрузка...</div>
-                <div id="user-score" class="score">Счет: 0</div>
-            </div>
-        </div>
-
-        <!-- Центральный контейнер с анимацией монеты -->
-        <div class="center-container">
-            <div class="app-title">
-                <h1>FlappyCoin</h1>
-            </div>
-            <div class="coin-animation">
-                <img id="coin-sprite" src="assets/bitcoin.png" alt="Монета">
-            </div>
-            <!-- Кнопки меню -->
-            <div class="menu-buttons">
-                <button id="play-button" class="play-button">ИГРАТЬ</button>
-            </div>
-        </div>
-    `;
-
-    // Приватные переменные компонента (заменяют глобальные)
+    // Приватные переменные компонента
     let userData = null;
     let container = null;
     let roomCreatedHandler = null;
@@ -44,15 +16,18 @@
      * @param {Object} appData - Данные приложения (пользователь и т.д.)
      */
     function initMainMenu(containerElement, appData) {
-        // Сохраняем ссылку на контейнер и данные пользователя
-        container = containerElement;
-        userData = appData.userData;
-        
-        appLogger.info('Инициализация главного меню');
-        
         try {
-            // Отрисовываем шаблон
-            renderMainMenu();
+            // Сохраняем ссылку на контейнер и данные пользователя
+            container = containerElement;
+            userData = appData.userData;
+            
+            appLogger.info('Инициализация главного меню');
+            
+            // Показываем главное меню
+            const mainMenu = document.getElementById('main-menu');
+            if (mainMenu) {
+                mainMenu.style.display = 'block';
+            }
             
             // Обновляем интерфейс с данными пользователя
             updateUserInterface(userData);
@@ -60,31 +35,14 @@
             // Настраиваем обработчики событий для кнопок
             setupEventListeners();
             
-            // Загружаем стиль главного меню, если не загружен
-            if (!document.getElementById('mainMenuStyle')) {
-                loadStyles('style/mainMenu.css', 'mainMenuStyle');
-            }
-            
             // Регистрируем обработчик для события создания комнаты
             roomCreatedHandler = handleRoomCreated;
             socketService.on('roomCreated', roomCreatedHandler);
             
         } catch (error) {
             appLogger.error('Ошибка при инициализации главного меню', { error: error.message });
+            throw error;
         }
-    }
-
-    /**
-     * Отрисовывает HTML-шаблон главного меню
-     */
-    function renderMainMenu() {
-        if (!container) {
-            appLogger.error('Не указан контейнер для главного меню');
-            return;
-        }
-        
-        container.innerHTML = mainMenuTemplate;
-        appLogger.debug('Отрисован шаблон главного меню');
     }
 
     /**
@@ -267,15 +225,16 @@
      * Очищает ресурсы компонента при скрытии экрана
      */
     function cleanupMainMenu() {
-        // Удаляем обработчики событий для кнопок
+        // Скрываем главное меню
+        const mainMenu = document.getElementById('main-menu');
+        if (mainMenu) {
+            mainMenu.style.display = 'none';
+        }
+        
+        // Удаляем обработчики событий
         const playButton = document.getElementById('play-button');
         if (playButton) {
             playButton.replaceWith(playButton.cloneNode(true));
-        }
-        
-        const coinSprite = document.getElementById('coin-sprite');
-        if (coinSprite) {
-            coinSprite.replaceWith(coinSprite.cloneNode(true));
         }
         
         // Удаляем обработчик события создания комнаты
