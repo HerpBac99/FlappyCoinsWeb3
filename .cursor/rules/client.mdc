@@ -1,0 +1,14 @@
+---
+description: 
+globs: *.js*
+alwaysApply: false
+---
+
+# Your rule content
+
+**Если файл относится к клиентской логике, то**
+##Подключай Telegram WebApp API: https://core.telegram.org/bots/webapps
+##Инициализируй Telegram.WebApp при загрузке страницы
+##Используй методы WebApp: sendData, close, expand и т.д. — смотри https://core.telegram.org/bots/webapps#webapp-interface
+##Работай с initData безопасно, передавай на сервер для валидации
+##Следи за стилем кода — используй eslint/prettier если нужно

@@ -1,0 +1,14 @@
+---
+description: 
+globs: *.js*
+alwaysApply: false
+---
+
+# Your rule content
+
+**Если файл относится к серверной логике, то**
+##используй Telegram Bot API: https://core.telegram.org/bots/api
+##Проверяй подлинность initData, используя алгоритм из: https://core.telegram.org/bots/webapps#validating-data-received-via-the-mini-app
+##Не храни токены и ключи в коде — используй переменные окружения
+##Разделяй маршруты и контроллеры логики
+##Используй HTTPS и CORS для работы с Telegram WebApp
