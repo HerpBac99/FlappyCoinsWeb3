@@ -10,6 +10,8 @@
     /* Шрифты */
     --main-font: 'Press Start 2P', monospace; /* Пиксельный шрифт для игрового стиля */
     --fallback-font: 'Montserrat', Arial, sans-serif; /* Запасной шрифт */
+    --font-title-size: 32px; /* Размер шрифта для заголовков*/
+    --font-text-size: 16px; /* Размер шрифта для текста*/
 }
 
 /* Глобальное применение шрифта */

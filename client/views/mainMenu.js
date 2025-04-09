@@ -24,10 +24,7 @@
             appLogger.info('Инициализация главного меню');
             
             // Показываем главное меню
-            const mainMenu = document.getElementById('main-menu');
-            if (mainMenu) {
-                mainMenu.style.display = 'block';
-            }
+            showMainMenu();
             
             // Обновляем интерфейс с данными пользователя
             updateUserInterface(userData);
@@ -36,12 +33,21 @@
             setupEventListeners();
             
             // Регистрируем обработчик для события создания комнаты
-            roomCreatedHandler = handleRoomCreated;
-            socketService.on('roomCreated', roomCreatedHandler);
+            registerSocketHandlers();
             
         } catch (error) {
             appLogger.error('Ошибка при инициализации главного меню', { error: error.message });
             throw error;
+        }
+    }
+    
+    /**
+     * Показывает главное меню
+     */
+    function showMainMenu() {
+        const mainMenu = document.getElementById('main-menu');
+        if (mainMenu) {
+            mainMenu.style.display = 'block';
         }
     }
 
@@ -57,38 +63,60 @@
         
         try {
             // Обновляем имя пользователя
-            const usernameElement = document.getElementById('username');
-            if (usernameElement) {
-                usernameElement.textContent = user.username || 'Аноним';
-            }
+            updateUserName(user);
             
             // Обновляем аватар, если доступен
-            const avatarElement = document.getElementById('user-avatar');
-            if (avatarElement && user.photo_url) {
-                avatarElement.src = user.photo_url;
-            }
+            updateUserAvatar(user);
             
-            // Загружаем счет пользователя из сохраненных данных (если есть)
-            fetch(`/api/user/${user.id}`)
-                .then(response => {
-                    if (response.ok) return response.json();
-                    throw new Error('Не удалось загрузить данные пользователя');
-                })
-                .then(data => {
-                    if (data && data.totalScore) {
-                        const scoreElement = document.getElementById('user-score');
-                        if (scoreElement) {
-                            scoreElement.textContent = `Счет: ${data.totalScore}`;
-                        }
-                        appLogger.debug('Загружен счет пользователя', { score: data.totalScore });
-                    }
-                })
-                .catch(error => {
-                    appLogger.error('Ошибка при загрузке данных пользователя', { error: error.message });
-                });
+            // Загружаем счет пользователя из сохраненных данных
+            loadUserScore(user);
+            
         } catch (error) {
             appLogger.error('Ошибка при обновлении интерфейса пользователя', { error: error.message });
         }
+    }
+    
+    /**
+     * Обновляет имя пользователя в интерфейсе
+     */
+    function updateUserName(user) {
+        const usernameElement = document.getElementById('username');
+        if (usernameElement) {
+            usernameElement.textContent = user.username || 'Аноним';
+        }
+    }
+    
+    /**
+     * Обновляет аватар пользователя
+     */
+    function updateUserAvatar(user) {
+        const avatarElement = document.getElementById('user-avatar');
+        if (avatarElement && user.photo_url) {
+            avatarElement.src = user.photo_url;
+        }
+    }
+    
+    /**
+     * Загружает счет пользователя с сервера
+     */
+    function loadUserScore(user) {
+        fetch(`/api/user/${user.id}`)
+            .then(response => {
+                if (response.ok) return response.json();
+                throw new Error('Не удалось загрузить данные пользователя');
+            })
+            .then(data => {
+                if (data && data.totalScore) {
+                    const scoreElement = document.getElementById('user-score');
+                    if (scoreElement) {
+                        scoreElement.textContent = `Счет: ${data.totalScore}`;
+                    }
+                    appLogger.debug('Загружен счет пользователя', { score: data.totalScore });
+                }
+            })
+            .catch(error => {
+                appLogger.error('Ошибка при загрузке данных пользователя', { error: error.message });
+            });
     }
 
     /**
@@ -97,61 +125,90 @@
     function setupEventListeners() {
         try {
             // Обработчик для кнопки "Играть"
-            const playButton = document.getElementById('play-button');
-            if (playButton) {
-                // Убедимся, что текст кнопки установлен явно
-                playButton.textContent = 'ИГРАТЬ';
-                
-                playButton.addEventListener('click', () => {
-                    // Логируем нажатие на кнопку
-                    appLogger.info('Нажата кнопка "Играть"');
-                    
-                    // Проверяем соединение перед созданием комнаты
-                    if (!socketService || !socketService.isConnected()) {
-                        appLogger.error('Нет соединения с сервером');
-                        // Попытка инициализировать сокет
-                        if (window.socketService && window.socketService.initialize) {
-                            appLogger.info('Попытка инициализации сокета');
-                            window.socketService.initialize(userData);
-                            // Даем время на подключение
-                            setTimeout(() => {
-                                if (socketService.isConnected()) {
-                                    createGameRoom();
-                                } else {
-                                    alert('Ошибка: нет соединения с сервером. Пожалуйста, проверьте подключение к интернету и перезагрузите приложение.');
-                                }
-                            }, 1000);
-                        } else {
-                            alert('Ошибка: нет соединения с сервером. Пожалуйста, проверьте подключение к интернету и перезагрузите приложение.');
-                        }
-                        return;
-                    }
-                    
-                    // Создаем новую комнату
-                    createGameRoom();
-                    
-                    // Визуальный эффект при нажатии
-                    playButton.style.transform = 'scale(0.95)';
-                    setTimeout(() => {
-                        playButton.style.transform = 'scale(1)';
-                    }, 100);
-                });
-            }
+            setupPlayButton();
             
             // Вращение монетки при наведении
-            const coinSprite = document.getElementById('coin-sprite');
-            if (coinSprite) {
-                coinSprite.addEventListener('mouseenter', () => {
-                    coinSprite.style.animation = 'spin 1s linear infinite';
-                });
-                
-                coinSprite.addEventListener('mouseleave', () => {
-                    coinSprite.style.animation = 'float 2s ease-in-out infinite';
-                });
-            }
+            setupCoinAnimation();
+            
         } catch (error) {
             appLogger.error('Ошибка при настройке обработчиков событий', { error: error.message });
         }
+    }
+    
+    /**
+     * Настраивает кнопку "Играть"
+     */
+    function setupPlayButton() {
+        const playButton = document.getElementById('play-button');
+        if (playButton) {
+            // Убедимся, что текст кнопки установлен явно
+            playButton.textContent = 'ИГРАТЬ';
+            
+            playButton.addEventListener('click', handlePlayButtonClick);
+        }
+    }
+    
+    /**
+     * Обработчик клика по кнопке "Играть"
+     */
+    function handlePlayButtonClick() {
+        // Логируем нажатие на кнопку
+        appLogger.info('Нажата кнопка "Играть"');
+        
+        // Проверяем соединение перед созданием комнаты
+        if (!socketService || !socketService.isConnected()) {
+            appLogger.error('Нет соединения с сервером');
+            // Попытка инициализировать сокет
+            if (window.socketService && window.socketService.initialize) {
+                appLogger.info('Попытка инициализации сокета');
+                window.socketService.initialize(userData);
+                // Даем время на подключение
+                setTimeout(() => {
+                    if (socketService.isConnected()) {
+                        createGameRoom();
+                    } else {
+                        alert('Ошибка: нет соединения с сервером. Пожалуйста, проверьте подключение к интернету и перезагрузите приложение.');
+                    }
+                }, 1000);
+            } else {
+                alert('Ошибка: нет соединения с сервером. Пожалуйста, проверьте подключение к интернету и перезагрузите приложение.');
+            }
+            return;
+        }
+        
+        // Создаем новую комнату
+        createGameRoom();
+        
+        // Визуальный эффект при нажатии
+        const button = this;
+        button.style.transform = 'scale(0.95)';
+        setTimeout(() => {
+            button.style.transform = 'scale(1)';
+        }, 100);
+    }
+    
+    /**
+     * Настраивает анимацию монеты
+     */
+    function setupCoinAnimation() {
+        const coinSprite = document.getElementById('coin-sprite');
+        if (coinSprite) {
+            coinSprite.addEventListener('mouseenter', () => {
+                coinSprite.style.animation = 'spin 1s linear infinite';
+            });
+            
+            coinSprite.addEventListener('mouseleave', () => {
+                coinSprite.style.animation = 'float 2s ease-in-out infinite';
+            });
+        }
+    }
+    
+    /**
+     * Регистрирует обработчики событий сокета
+     */
+    function registerSocketHandlers() {
+        roomCreatedHandler = handleRoomCreated;
+        socketService.on('roomCreated', roomCreatedHandler);
     }
 
     /**
@@ -192,33 +249,21 @@
             localStorage.setItem('lastRoomId', data.roomId);
             
             // Показываем индикатор загрузки перед переходом
-            const loadingOverlay = document.getElementById('loading-overlay');
-            if (loadingOverlay) {
-                loadingOverlay.style.display = 'flex';
-            }
+            showLoadingOverlay();
             
-            // Переходим на экран комнаты (без перезагрузки страницы)
+            // Переходим на экран комнаты
             app.showScreen('room', { roomId: data.roomId });
         }
     }
-
+    
     /**
-     * Загружает CSS-стиль, если он еще не загружен
-     * @param {string} url - Путь к CSS файлу
-     * @param {string} id - Идентификатор для элемента link
+     * Показывает индикатор загрузки
      */
-    function loadStyles(url, id) {
-        if (document.getElementById(id)) {
-            return;
+    function showLoadingOverlay() {
+        const loadingOverlay = document.getElementById('loading-overlay');
+        if (loadingOverlay) {
+            loadingOverlay.style.display = 'flex';
         }
-        
-        const link = document.createElement('link');
-        link.id = id;
-        link.rel = 'stylesheet';
-        link.href = url;
-        document.head.appendChild(link);
-        
-        appLogger.debug(`Загружен стиль: ${url}`);
     }
 
     /**
@@ -232,18 +277,32 @@
         }
         
         // Удаляем обработчики событий
+        removeEventListeners();
+        
+        // Удаляем обработчик события создания комнаты
+        unregisterSocketHandlers();
+        
+        appLogger.debug('Очищены ресурсы главного меню');
+    }
+    
+    /**
+     * Удаляет обработчики событий
+     */
+    function removeEventListeners() {
         const playButton = document.getElementById('play-button');
         if (playButton) {
             playButton.replaceWith(playButton.cloneNode(true));
         }
-        
-        // Удаляем обработчик события создания комнаты
+    }
+    
+    /**
+     * Удаляет обработчики сокетов
+     */
+    function unregisterSocketHandlers() {
         if (roomCreatedHandler) {
             socketService.off('roomCreated', roomCreatedHandler);
             roomCreatedHandler = null;
         }
-        
-        appLogger.debug('Очищены ресурсы главного меню');
     }
 
     // Экспортируем компонент в глобальное пространство имен

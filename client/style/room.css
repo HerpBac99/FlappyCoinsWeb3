@@ -1,10 +1,5 @@
 /* Общие стили */
 :root {
-    --primary-color: #3498db;
-    --secondary-color: #2ecc71;
-    --background-color: #1e272e;
-    --text-color: #ecf0f1;
-    --border-color: #34495e;
     --ready-color: #2ecc71;
     --not-ready-color: #e74c3c;
 }
@@ -48,14 +43,14 @@ body {
     border-radius: 15px;
     width: calc(100% - 40px);
     max-width: 800px;
-    margin: 20px auto;
+    margin: 100px auto; 
     padding: 25px;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
     backdrop-filter: blur(8px);
     border: 1px solid rgba(255, 255, 255, 0.1);
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: 20px; /* Устанавливаем gap 20px - отступы между элементами*/
     animation: fadeIn 0.5s ease-out;
 }
 
@@ -81,13 +76,14 @@ body {
     justify-content: space-between;
     align-items: center;
     padding: 10px;
+    font-size: 8px;
     background-color: var(--border-color);
     border-radius: var(--border-radius);
     margin-bottom: 20px;
 }
 
 .room-header h1 {
-    font-size: 28px;
+    font-size: 8px;
     color: var(--secondary-color);
     margin-bottom: 10px;
     text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
@@ -112,6 +108,7 @@ body {
 .players-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
+    font-size: var(--font-text-size);
     gap: 5px;
     width: 100%;
     border-radius: 10px;
@@ -195,6 +192,7 @@ body {
     padding: 15px;
     background-color: rgba(0, 0, 0, 0.2);
     border-radius: 10px;
+    font-size: var(--font-text-size);
 }
 
 .status-examples {
@@ -255,7 +253,6 @@ body {
     padding: 10px 20px;
     cursor: pointer;
     transition: all 0.3s ease;
-    font-size: 16px;
 }
 
 .back-button:hover {
@@ -266,7 +263,7 @@ body {
 /* Адаптивный дизайн */
 @media (max-width: 480px) {
     .room-header h1 {
-        font-size: 24px;
+        font-size: 8px;
     }
     
     .players-grid {

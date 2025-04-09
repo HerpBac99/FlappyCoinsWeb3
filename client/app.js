@@ -3,17 +3,14 @@
  * Управляет инициализацией, переключением экранов и глобальным состоянием
  */
 
-// Глобальные переменные приложения
-let currentScreen = null;
-let userData = null;
-let appContainer = null;
-
-// Состояние приложения
+// Глобальное состояние приложения
 const appState = {
     isInitialized: false,
     userData: null,
     socket: null,
-    screenHistory: []
+    screenHistory: [],
+    currentScreen: null,
+    container: null
 };
 
 // Доступные экраны приложения
@@ -44,11 +41,7 @@ function initApp() {
         }
         
         // Инициализация полноэкранного режима для Telegram Mini App
-        if (typeof initTelegramFullscreen === 'function') {
-            initTelegramFullscreen();
-        } else {
-            appLogger.error('Функция инициализации полноэкранного режима не найдена');
-        }
+        initTelegramFeatures();
         
         // Получаем данные пользователя
         appState.userData = getUserData();
@@ -59,50 +52,79 @@ function initApp() {
         }
         
         // Находим контейнер приложения
-        appContainer = document.getElementById('app-container');
-        if (!appContainer) {
+        appState.container = document.getElementById('app-container');
+        if (!appState.container) {
             appLogger.error('Не найден контейнер приложения');
             return;
         }
         
         // Инициализируем WebSocket соединение
-        try {
-            appLogger.info('Инициализация WebSocket соединения');
-            appState.socket = socketService.initialize(appState.userData);
-            
-            // Проверяем соединение через таймаут
-            setTimeout(() => {
-                if (!socketService.isConnected()) {
-                    appLogger.warn('WebSocket соединение не установлено после инициализации, повторная попытка');
-                    // Повторная попытка подключения
-                    appState.socket = socketService.initialize(appState.userData);
-                }
-            }, 2000);
-            
-        } catch (socketError) {
-            appLogger.error('Ошибка при инициализации WebSocket', { error: socketError.message });
-            // Продолжаем инициализацию приложения даже при ошибке соединения
-        }
+        initSocketConnection();
+        
+        // Настраиваем обработчики событий приложения
+        setupAppEvents();
         
         // Отмечаем приложение как инициализированное
         appState.isInitialized = true;
         
-        // Получаем данные из URL для возможного прямого перехода
-        const urlParams = new URLSearchParams(window.location.search);
-        const screenFromUrl = urlParams.get('screen');
-        const roomId = urlParams.get('roomId');
-        
         // Показываем начальный экран
-        if (screenFromUrl === 'room' && roomId) {
-            showScreen('room', { roomId });
-        } else {
-            showScreen('mainMenu');
-        }
+        showInitialScreen();
         
         appLogger.info('Приложение успешно инициализировано');
     } catch (error) {
         appLogger.error('Ошибка при инициализации приложения', { error: error.message });
         showError('Ошибка при инициализации приложения: ' + error.message);
+    }
+}
+
+/**
+ * Инициализирует функции Telegram
+ */
+function initTelegramFeatures() {
+    if (typeof initTelegramFullscreen === 'function') {
+        initTelegramFullscreen();
+    } else {
+        appLogger.error('Функция инициализации полноэкранного режима не найдена');
+    }
+}
+
+/**
+ * Инициализирует соединение по WebSocket
+ */
+function initSocketConnection() {
+    try {
+        appLogger.info('Инициализация WebSocket соединения');
+        appState.socket = socketService.initialize(appState.userData);
+        
+        // Проверяем соединение через таймаут
+        setTimeout(() => {
+            if (!socketService.isConnected()) {
+                appLogger.warn('WebSocket соединение не установлено после инициализации, повторная попытка');
+                // Повторная попытка подключения
+                appState.socket = socketService.initialize(appState.userData);
+            }
+        }, 2000);
+        
+    } catch (socketError) {
+        appLogger.error('Ошибка при инициализации WebSocket', { error: socketError.message });
+        // Продолжаем инициализацию приложения даже при ошибке соединения
+    }
+}
+
+/**
+ * Определяет и показывает начальный экран на основе URL-параметров
+ */
+function showInitialScreen() {
+    // Получаем данные из URL для возможного прямого перехода
+    const urlParams = new URLSearchParams(window.location.search);
+    const screenFromUrl = urlParams.get('screen');
+    const roomId = urlParams.get('roomId');
+    
+    // Показываем начальный экран
+    if (screenFromUrl === 'room' && roomId) {
+        showScreen('room', { roomId });
+    } else {
+        showScreen('mainMenu');
     }
 }
 
@@ -132,9 +154,9 @@ function showScreen(screenId, params = {}) {
         });
         
         // Если текущий экран тот же самый, просто обновляем его
-        if (currentScreen && currentScreen.id === screenId) {
+        if (appState.currentScreen && appState.currentScreen.id === screenId) {
             appLogger.debug('Обновление текущего экрана', { screenId });
-            currentScreen.component.init(appContainer, { 
+            appState.currentScreen.component.init(appState.container, { 
                 ...params, 
                 userData: appState.userData 
             });
@@ -142,17 +164,15 @@ function showScreen(screenId, params = {}) {
         }
         
         // Очищаем текущий экран, если он есть
-        if (currentScreen && currentScreen.component.cleanup) {
-            currentScreen.component.cleanup();
-        }
+        cleanupCurrentScreen();
         
         // Сохраняем историю переходов
-        if (currentScreen) {
-            appState.screenHistory.push(currentScreen.id);
+        if (appState.currentScreen) {
+            appState.screenHistory.push(appState.currentScreen.id);
         }
         
         // Обновляем текущий экран
-        currentScreen = screens[screenId];
+        appState.currentScreen = screens[screenId];
         
         // Показываем выбранный экран
         const screenElement = document.getElementById(screenId);
@@ -161,7 +181,7 @@ function showScreen(screenId, params = {}) {
         }
         
         // Инициализируем новый экран
-        currentScreen.component.init(appContainer, { 
+        appState.currentScreen.component.init(appState.container, { 
             ...params, 
             userData: appState.userData 
         });
@@ -176,6 +196,15 @@ function showScreen(screenId, params = {}) {
             error: error.message 
         });
         showError('Ошибка при отображении экрана: ' + error.message);
+    }
+}
+
+/**
+ * Очищает ресурсы текущего экрана
+ */
+function cleanupCurrentScreen() {
+    if (appState.currentScreen && appState.currentScreen.component.cleanup) {
+        appState.currentScreen.component.cleanup();
     }
 }
 
