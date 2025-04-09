@@ -231,7 +231,7 @@ function removePlayer(roomId, userId) {
     room.players.splice(playerIndex, 1);
     console.log(`Игрок ${player.username} (${userId}) удален из комнаты ${roomId}`);
     
-    // Если комната пуста, планируем её удаление с задержкой
+    // Если комната пуста, удаляем её немедленно
     if (room.players.length === 0) {
         // Если есть активный таймер обратного отсчета, очищаем его
         if (room.countdown) {
@@ -239,29 +239,19 @@ function removePlayer(roomId, userId) {
             room.countdown = null;
         }
         
-        // Если уже есть таймер удаления комнаты, очищаем его
+        // Если есть таймер удаления комнаты, очищаем его
         if (roomDeletionTimers.has(roomId)) {
             clearTimeout(roomDeletionTimers.get(roomId));
+            roomDeletionTimers.delete(roomId);
         }
         
-        // Устанавливаем новый таймер на удаление комнаты
-        console.log(`Планирование удаления пустой комнаты ${roomId} через ${ROOM_DELETION_TIMEOUT/1000} секунд`);
-        const timerId = setTimeout(() => {
-            // Проверяем, что комната всё ещё пуста
-            if (rooms.has(roomId) && rooms.get(roomId).players.length === 0) {
-                console.log(`Удаление пустой комнаты ${roomId} по таймауту`);
-                rooms.delete(roomId);
-                roomDeletionTimers.delete(roomId);
-            }
-        }, ROOM_DELETION_TIMEOUT);
-        
-        // Сохраняем ID таймера
-        roomDeletionTimers.set(roomId, timerId);
+        // Удаляем комнату сразу
+        console.log(`Удаление пустой комнаты ${roomId} немедленно`);
+        rooms.delete(roomId);
         
         return { 
             success: true, 
-            roomDeleted: false, // Комната не удаляется мгновенно
-            roomScheduledForDeletion: true,
+            roomDeleted: true,
             player 
         };
     }
@@ -324,12 +314,23 @@ function findOrCreateRoom(player) {
     // Ищем все активные комнаты
     const activeRooms = getAllRooms();
     
+    console.log(`Поиск доступной комнаты для игрока ${player.username} (${player.userId}). Всего комнат: ${activeRooms.length}`);
+    
+    // Логируем состояние всех активных комнат
+    if (activeRooms.length > 0) {
+        activeRooms.forEach(room => {
+            console.log(`Проверка комнаты ${room.id}: игроков ${room.players.length}/${MAX_PLAYERS_PER_ROOM}, игра началась: ${room.isGameStarted}`);
+        });
+    }
+    
     // Ищем комнату с менее чем максимальным количеством игроков и не начатой игрой
     const availableRoom = activeRooms.find(room => 
         room.players.length < MAX_PLAYERS_PER_ROOM && 
         !room.isGameStarted &&
         // Проверяем, что игрок еще не в этой комнате
-        !room.players.some(p => p.userId === player.userId)
+        !room.players.some(p => p.userId === player.userId) &&
+        // Дополнительно убеждаемся, что комната активна и в ней есть игроки
+        room.players.length > 0
     );
     
     // Если нашли доступную комнату, присоединяем игрока к ней
@@ -344,7 +345,11 @@ function findOrCreateRoom(player) {
                 room: joinResult.room,
                 isNewPlayer: joinResult.isNewPlayer
             };
+        } else {
+            console.log(`Не удалось присоединиться к комнате ${availableRoom.id}: ${joinResult.error} - ${joinResult.message}`);
         }
+    } else {
+        console.log(`Не найдено доступных комнат для игрока ${player.username} (${player.userId})`);
     }
     
     // Если не нашли доступной комнаты или не смогли присоединиться, создаем новую

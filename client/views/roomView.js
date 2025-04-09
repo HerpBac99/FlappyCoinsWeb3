@@ -17,48 +17,83 @@
     let socketHandlers = {};
 
     /**
-     * Инициализирует компонент комнаты ожидания
-     * @param {HTMLElement} containerElement - DOM-элемент, в который будет встроен компонент
-     * @param {Object} appData - Данные приложения (пользователь, ID комнаты и т.д.)
+     * Инициализирует экран комнаты ожидания
+     * @param {HTMLElement} container - Основной контейнер приложения
+     * @param {Object} params - Параметры инициализации
      */
-    function initRoomView(containerElement, appData) {
-        // Сохраняем ссылки на контейнер и данные пользователя
-        container = containerElement;
-        userData = appData.userData;
-        
-        // Получаем ID комнаты из параметров или localStorage
-        roomId = appData.roomId || localStorage.getItem('lastRoomId');
-        
-        appLogger.info('Инициализация комнаты ожидания', { roomId });
-        
-        if (!roomId) {
-            appLogger.error('ID комнаты не найден');
-            alert('Ошибка: ID комнаты не найден!');
-            app.showScreen('mainMenu');
-            return;
-        }
+    function init(container, params = {}) {
+        console.log('=== ИНИЦИАЛИЗАЦИЯ КОМНАТЫ ===');
+        console.log('Параметры:', params);
         
         try {
-            // Скрываем индикатор загрузки если есть
-            const loadingOverlay = document.getElementById('loading-overlay');
-            if (loadingOverlay) {
-                loadingOverlay.style.display = 'none';
+            // Проверяем обязательные параметры
+            if (!params.userData) {
+                appLogger.error('Необходимы данные пользователя для присоединения к комнате');
+                showError('Не удалось получить данные пользователя');
+                return;
             }
             
-            // Обновляем ID комнаты в интерфейсе
-            updateRoomInfo();
+            // Сохраняем данные пользователя
+            userData = params.userData;
             
-            // Настраиваем обработчики событий
-            setupEventListeners();
-            
-            // Регистрируем обработчики событий Socket.IO
-            registerSocketHandlers();
-            
-            // Присоединяемся к комнате
-            joinRoom();
-            
+            // Проверяем, есть ли ID комнаты в параметрах
+            if (params.roomId) {
+                roomId = params.roomId;
+                appLogger.info('Инициализация комнаты', { roomId });
+                
+                // Если есть флаг немедленного отображения - показываем интерфейс сразу
+                if (params.showImmediately) {
+                    console.log('Немедленное отображение интерфейса комнаты');
+                    
+                    // Показываем экран комнаты
+                    const roomElement = document.getElementById('room');
+                    if (roomElement) {
+                        roomElement.style.display = 'block';
+                    }
+                    
+                    // Скрываем другие экраны (для уверенности)
+                    const otherScreens = document.querySelectorAll('.screen:not(#room)');
+                    otherScreens.forEach(screen => {
+                        screen.style.display = 'none';
+                    });
+                }
+                
+                // Настраиваем WebSocket взаимодействие
+                if (!socketService.isConnected()) {
+                    appLogger.warn('Отсутствует соединение по WebSocket, переподключение...');
+                    socketService.initialize(userData);
+                }
+                
+                // Регистрируем обработчики событий сокета
+                registerSocketHandlers();
+                
+                // Настраиваем обработчики событий интерфейса
+                setupEventListeners();
+                
+                // Присоединяемся к комнате
+                joinRoom(roomId, userData);
+            } else {
+                // Если нет ID комнаты, запрашиваем ее создание
+                appLogger.info('Запрос на создание новой комнаты');
+                
+                // Настраиваем WebSocket взаимодействие
+                if (!socketService.isConnected()) {
+                    appLogger.warn('Отсутствует соединение по WebSocket, переподключение...');
+                    socketService.initialize(userData);
+                }
+                
+                // Регистрируем обработчики событий сокета
+                registerSocketHandlers();
+                
+                // Настраиваем обработчики событий интерфейса
+                setupEventListeners();
+                
+                // Отправляем запрос на создание комнаты
+                findOrCreateRoom(userData);
+            }
         } catch (error) {
-            appLogger.error('Ошибка при инициализации комнаты ожидания', { error: error.message });
+            appLogger.error('Ошибка при инициализации комнаты', { error: error.message });
+            showError('Ошибка при инициализации комнаты: ' + error.message);
         }
     }
 
@@ -96,8 +131,13 @@
                 // Добавляем новый обработчик
                 newBackButton.addEventListener('click', function() {
                     appLogger.info('Нажата кнопка "Назад"');
+                    
+                    // Отправляем серверу уведомление о выходе из комнаты
+                    leaveRoom();
+                    
                     // Очищаем ресурсы компонента перед переходом
                     cleanupRoomView();
+                    
                     // Переходим в главное меню
                     app.showScreen('mainMenu');
                 });
@@ -194,14 +234,59 @@
      * @param {Object} data - Данные комнаты
      */
     function handleRoomJoined(data) {
-        if (data && data.room) {
-            appLogger.info('Успешно присоединился к комнате', { roomId: data.room.id });
+        console.log('=== ПРИСОЕДИНЕНИЕ К КОМНАТЕ ===');
+        console.log('Полученные данные:', data);
+        
+        try {
+            if (!data || !data.room) {
+                appLogger.error('Получены некорректные данные при присоединении к комнате', data);
+                return;
+            }
+            
+            appLogger.info('Успешно присоединился к комнате', { 
+                roomId: data.room.id,
+                playersCount: data.room.players.length 
+            });
             
             // Сохраняем данные игроков
             playersData = data.room.players;
             
-            // Обновляем UI комнаты
+            // Сохраняем статус готовности текущего игрока, если он есть
+            if (userData && userData.id) {
+                const currentPlayer = playersData.find(p => p.userId === userData.id);
+                if (currentPlayer) {
+                    isReady = currentPlayer.isReady || false;
+                    console.log(`Статус готовности текущего игрока: ${isReady}`);
+                }
+            }
+            
+            // Проверяем, что элементы интерфейса комнаты отображаются
+            const roomElement = document.getElementById('room');
+            if (roomElement && roomElement.style.display !== 'block') {
+                console.log('Принудительное отображение комнаты');
+                roomElement.style.display = 'block';
+                
+                // Скрываем другие экраны для уверенности
+                const otherScreens = document.querySelectorAll('.screen:not(#room)');
+                otherScreens.forEach(screen => {
+                    screen.style.display = 'none';
+                });
+            }
+            
+            // Обновляем UI комнаты со всеми статусами игроков
             updateRoomUI();
+            
+            // Проверяем статусы всех игроков после обновления UI
+            console.log('Проверка статусов игроков после обновления UI:');
+            playersData.forEach(player => {
+                console.log(`- ${player.username} (${player.userId}): ${player.isReady ? 'готов' : 'не готов'}`);
+            });
+        } catch (error) {
+            appLogger.error('Ошибка при обработке присоединения к комнате', { 
+                error: error.message,
+                data: data
+            });
+            console.error('Детали ошибки:', error);
         }
     }
 
@@ -237,23 +322,73 @@
      * @param {Object} data - Данные об игроке, который покинул комнату
      */
     function handlePlayerLeft(data) {
-        if (data && data.userId) {
-            appLogger.info('Игрок покинул комнату', {
-                playerId: data.userId,
-                username: data.username
-            });
-            
-            // Обновляем список игроков
-            if (data.players) {
-                playersData = data.players;
-            } else {
-                // Удаляем игрока, если не получили полный список
-                playersData = playersData.filter(p => p.userId !== data.userId);
-            }
-            
-            // Обновляем UI комнаты
-            updateRoomUI();
+        console.log('=== ИГРОК ПОКИНУЛ КОМНАТУ ===');
+        console.log('Данные:', data);
+        
+        if (!data || !data.userId) {
+            appLogger.error('Получены некорректные данные в handlePlayerLeft', data);
+            return;
         }
+        
+        appLogger.info('Игрок покинул комнату', {
+            playerId: data.userId,
+            username: data.username || 'Неизвестный игрок'
+        });
+        
+        // Обновляем список игроков
+        if (data.players && Array.isArray(data.players)) {
+            appLogger.debug('Получен обновленный список игроков', { count: data.players.length });
+            
+            // Если пришел флаг сохранения статусов, сохраняем текущие статусы игроков
+            if (data.preserveStatuses) {
+                console.log('Сохраняем статусы игроков при выходе игрока');
+                
+                // Создаем новый список игроков, обновляя их данные, но сохраняя статусы
+                playersData = data.players.map(newPlayerData => {
+                    // Проверяем, есть ли игрок в существующем списке (кроме вышедшего игрока)
+                    const existingPlayer = playersData.find(p => p.userId === newPlayerData.userId);
+                    
+                    // Если игрок есть и у него был установлен статус, сохраняем его
+                    if (existingPlayer && existingPlayer.isReady !== undefined) {
+                        return {
+                            ...newPlayerData,
+                            isReady: existingPlayer.isReady
+                        };
+                    }
+                    
+                    // Иначе возвращаем новые данные без изменений
+                    return newPlayerData;
+                });
+                
+                console.log('Статусы игроков сохранены:', playersData.map(p => ({
+                    username: p.username,
+                    userId: p.userId,
+                    isReady: p.isReady
+                })));
+            } else {
+                // Просто обновляем список, если нет флага сохранения статусов
+                playersData = data.players;
+            }
+        } else {
+            // Удаляем игрока вручную, если не получили полный список
+            const playerIndex = playersData.findIndex(p => p.userId === data.userId);
+            if (playerIndex !== -1) {
+                appLogger.debug(`Удаляем игрока с ID ${data.userId} из списка вручную`);
+                const removedPlayer = playersData[playerIndex];
+                console.log(`Удаляем игрока: ${removedPlayer.username} (${removedPlayer.userId})`);
+                playersData.splice(playerIndex, 1);
+            } else {
+                appLogger.warn('Игрок не найден в списке для удаления', {
+                    playerId: data.userId,
+                    currentPlayers: playersData.map(p => p.userId)
+                });
+            }
+        }
+        
+        console.log('Список игроков после обновления:', playersData);
+        
+        // Принудительно обновляем весь UI комнаты
+        updateRoomUI();
     }
 
     /**
@@ -264,50 +399,71 @@
         console.log('=== ПОЛУЧЕН СТАТУС С СЕРВЕРА ===');
         console.log('Данные:', data);
         
-        if (!data) {
-            appLogger.error('Получены пустые данные в handlePlayerStatusChanged');
-            return;
-        }
-        
-        if (!data.userId) {
-            appLogger.error('Отсутствует ID пользователя в handlePlayerStatusChanged', data);
-            return;
-        }
-        
-        if (data.isReady === undefined || data.isReady === null) {
-            appLogger.error('Отсутствует статус готовности в handlePlayerStatusChanged', data);
-            return;
-        }
-        
-        appLogger.debug('Изменен статус игрока', {
-            playerId: data.userId,
-            isReady: data.isReady
-        });
-        
-        // Обновляем статус игрока в списке
-        const playerIndex = playersData.findIndex(p => p.userId === data.userId);
-        if (playerIndex !== -1) {
-            const previousStatus = playersData[playerIndex].isReady;
-            playersData[playerIndex].isReady = data.isReady;
-            
-            console.log(`Игрок ${playersData[playerIndex].username}: статус изменен с ${previousStatus} на ${data.isReady}`);
-            
-            // Если это текущий пользователь, обновляем его статус
-            if (data.userId === userData.id) {
-                const prevIsReady = isReady;
-                isReady = data.isReady;
-                console.log(`Обновлен локальный статус для текущего игрока: ${prevIsReady} -> ${isReady}`);
+        try {
+            if (!data) {
+                appLogger.error('Получены пустые данные в handlePlayerStatusChanged');
+                return;
             }
-        } else {
-            appLogger.warn('Игрок не найден в списке при обновлении статуса', {
+            
+            if (!data.userId) {
+                appLogger.error('Отсутствует ID пользователя в handlePlayerStatusChanged', data);
+                return;
+            }
+            
+            if (data.isReady === undefined || data.isReady === null) {
+                appLogger.error('Отсутствует статус готовности в handlePlayerStatusChanged', data);
+                return;
+            }
+            
+            appLogger.debug('Изменен статус игрока', {
                 playerId: data.userId,
-                playersCount: playersData.length
+                isReady: data.isReady
             });
-            console.log('Список игроков:', playersData);
+            
+            // Обновляем статус игрока в списке
+            const playerIndex = playersData.findIndex(p => p.userId === data.userId);
+            if (playerIndex !== -1) {
+                const previousStatus = playersData[playerIndex].isReady;
+                playersData[playerIndex].isReady = data.isReady;
+                
+                console.log(`Игрок ${playersData[playerIndex].username}: статус изменен с ${previousStatus} на ${data.isReady}`);
+                
+                // Если это текущий пользователь, обновляем его статус
+                if (data.userId === userData.id) {
+                    const prevIsReady = isReady;
+                    isReady = data.isReady;
+                    console.log(`Обновлен локальный статус для текущего игрока: ${prevIsReady} -> ${isReady}`);
+                }
+                
+                // Обновляем UI комнаты
+                updatePlayerStatus(data.userId, data.isReady);
+            } else {
+                appLogger.warn('Игрок не найден в списке при обновлении статуса', {
+                    playerId: data.userId,
+                    playersCount: playersData.length
+                });
+                console.log('Список игроков:', playersData);
+                
+                // Если игрок не найден в списке, обновляем весь UI
+                // Это может произойти при рассинхронизации данных
+                if (roomId) {
+                    console.log('Попытка восстановить данные игроков из комнаты');
+                    // Запрашиваем актуальные данные комнаты
+                    socketService.emit('joinRoom', {
+                        roomId: roomId,
+                        userId: userData.id,
+                        username: userData.username || 'Аноним',
+                        photoUrl: userData.photo_url || 'assets/default-avatar.png'
+                    });
+                }
+            }
+        } catch (error) {
+            appLogger.error('Ошибка при обработке изменения статуса игрока', { 
+                error: error.message,
+                data: data
+            });
+            console.error('Детали ошибки:', error);
         }
-        
-        // Обновляем UI комнаты
-        updatePlayerStatus(data.userId, data.isReady);
     }
 
     /**
@@ -419,11 +575,31 @@
      */
     function updateRoomUI() {
         try {
+            // Дополнительное логирование состояния комнаты перед обновлением UI
+            console.log('=== ОБНОВЛЕНИЕ UI КОМНАТЫ ===');
+            console.log('ID комнаты:', roomId);
+            console.log('Количество игроков:', playersData.length);
+            console.log('Текущие игроки:', playersData.map(p => ({
+                username: p.username,
+                userId: p.userId,
+                isReady: p.isReady
+            })));
+            
             // Обновляем заголовок с ID комнаты
             updateRoomInfo();
             
-            // Обновляем таблицу игроков
+            // Проверяем, что элемент с сеткой игроков существует
             const playersGrid = document.querySelector('.players-grid');
+            if (!playersGrid) {
+                appLogger.error('Элемент .players-grid не найден в DOM');
+                // Контейнер комнаты не отображается или отсутствует в DOM
+                const roomElement = document.getElementById('room');
+                if (roomElement) {
+                    console.log('Принудительное отображение комнаты');
+                    roomElement.style.display = 'block';
+                }
+                return;
+            }
             
             // Удаляем строки игроков (оставляем только заголовки)
             const headerElements = document.querySelectorAll('.grid-header');
@@ -472,11 +648,29 @@
                     playerStatusCell.addEventListener('click', toggleReadyStatus);
                 }
                 
+                // Получаем статус готовности (по умолчанию false)
+                const playerIsReady = player.isReady === true;
+                
                 // Создаем индикатор статуса
                 const statusCircle = document.createElement('div');
-                statusCircle.className = player.isReady ? 'status-circle ready' : 'status-circle not-ready';
-                statusCircle.dataset.userId = player.userId;
-                statusCircle.innerHTML = player.isReady ? '✓' : '✗';
+                
+                // Устанавливаем классы в зависимости от статуса
+                statusCircle.className = playerIsReady 
+                    ? 'status-circle ready' 
+                    : 'status-circle not-ready';
+                
+                // Устанавливаем текст и атрибуты
+                statusCircle.setAttribute('data-userid', player.userId);
+                statusCircle.innerHTML = playerIsReady ? '✓' : '✗';
+                
+                // Явное применение стилей для обхода возможных проблем с CSS
+                const readyColor = getComputedStyle(document.documentElement).getPropertyValue('--ready-color').trim() || '#2ecc71';
+                const notReadyColor = getComputedStyle(document.documentElement).getPropertyValue('--not-ready-color').trim() || '#e74c3c';
+                
+                statusCircle.style.backgroundColor = playerIsReady ? readyColor : notReadyColor;
+                statusCircle.style.border = playerIsReady
+                    ? `2px solid rgba(46, 204, 113, 0.5)` 
+                    : `2px solid rgba(231, 76, 60, 0.5)`;
                 
                 // Добавляем индикатор к ячейке
                 playerStatusCell.appendChild(statusCircle);
@@ -484,6 +678,9 @@
                 // Добавляем ячейки к сетке
                 playersGrid.appendChild(playerNameCell);
                 playersGrid.appendChild(playerStatusCell);
+                
+                // Логируем созданный элемент статуса
+                console.log(`Создан индикатор статуса для ${player.username} (${player.userId}): ${playerIsReady ? 'готов' : 'не готов'}`);
             });
             
             // Обновляем счетчик игроков
@@ -496,6 +693,7 @@
             
         } catch (error) {
             appLogger.error('Ошибка при обновлении UI комнаты', { error: error.message });
+            console.error('Детали ошибки:', error);
         }
     }
 
@@ -506,61 +704,77 @@
      */
     function updatePlayerStatus(userId, isReady) {
         try {
-            console.log('=== ОБНОВЛЕНИЕ СТАТУСА В UI ===');
-            console.log('ID игрока:', userId);
-            console.log('Новый статус готовности:', isReady);
-            
             appLogger.debug('Обновление статуса игрока в UI', { userId, isReady });
             
-            // Находим статусный круг по data-userId атрибуту
-            const statusCircle = document.querySelector(`.status-circle[data-userId="${userId}"]`);
+            // Пробуем найти по обоим возможным атрибутам (data-userid и data-userId)
+            let statusCircle = document.querySelector(`.status-circle[data-userid="${userId}"]`);
+            if (!statusCircle) {
+                statusCircle = document.querySelector(`.status-circle[data-userId="${userId}"]`);
+            }
             
             if (statusCircle) {
-                console.log('DOM элемент найден, текущие классы:', statusCircle.className);
+                // Проверяем текущий статус чтобы избежать повторного обновления
+                const isCurrentlyReady = statusCircle.classList.contains('ready');
                 
-                // Полностью заменяем класс вместо добавления/удаления
-                const baseClass = 'status-circle';
-                const statusClass = isReady ? 'ready' : 'not-ready';
-                statusCircle.className = `${baseClass} ${statusClass}`;
-                
-                // Обновляем текст
-                statusCircle.innerHTML = isReady ? '✓' : '✗';
-                
-                console.log('DOM элемент обновлен, новые классы:', statusCircle.className);
-                
-                // Явное применение стилей для решения возможных проблем с CSS
-                const readyColor = getComputedStyle(document.documentElement).getPropertyValue('--ready-color').trim();
-                const notReadyColor = getComputedStyle(document.documentElement).getPropertyValue('--not-ready-color').trim();
-                
-                console.log('CSS переменные:', { readyColor, notReadyColor });
-                
-                // Принудительно применяем стили напрямую через style
-                statusCircle.style.backgroundColor = isReady ? readyColor : notReadyColor;
-                statusCircle.style.color = 'white';
-                statusCircle.style.fontWeight = 'bold';
-                statusCircle.style.border = `2px solid ${isReady ? readyColor : notReadyColor}`;
-                
-                appLogger.debug('Статус игрока обновлен в UI', { userId, isReady });
+                // Только если статус действительно изменился
+                if (isCurrentlyReady !== isReady) {
+                    appLogger.debug('Применение нового статуса к UI', { userId, isReady });
+                    
+                    // Полностью заменяем класс вместо добавления/удаления
+                    const baseClass = 'status-circle';
+                    const statusClass = isReady ? 'ready' : 'not-ready';
+                    statusCircle.className = `${baseClass} ${statusClass}`;
+                    
+                    // Обновляем текст
+                    statusCircle.innerHTML = isReady ? '✓' : '✗';
+                    
+                    // Явное применение стилей для решения возможных проблем с CSS
+                    const readyColor = getComputedStyle(document.documentElement).getPropertyValue('--ready-color').trim() || '#2ecc71';
+                    const notReadyColor = getComputedStyle(document.documentElement).getPropertyValue('--not-ready-color').trim() || '#e74c3c';
+                    
+                    statusCircle.style.backgroundColor = isReady ? readyColor : notReadyColor;
+                    statusCircle.style.border = isReady ? 
+                        `2px solid rgba(46, 204, 113, 0.5)` : 
+                        `2px solid rgba(231, 76, 60, 0.5)`;
+                    
+                    appLogger.debug('Статус игрока обновлен в UI', { userId, isReady });
+                } else {
+                    appLogger.debug('Статус игрока уже в нужном состоянии, обновление не требуется', { userId, isReady });
+                }
             } else {
-                console.log('DOM элемент НЕ найден! Селектор:', `.status-circle[data-userId="${userId}"]`);
-                console.log('Все элементы .status-circle:', document.querySelectorAll('.status-circle').length);
+                appLogger.warn('Элемент статуса не найден в DOM', { userId });
+                console.log('Выполняем полное обновление UI комнаты');
                 
-                // Попробуем найти все элементы с атрибутом data-userId
-                const allUserElements = document.querySelectorAll('[data-userId]');
-                console.log('Элементы с data-userId:', allUserElements.length);
-                
-                if (allUserElements.length > 0) {
-                    console.log('Доступные ID:', Array.from(allUserElements).map(el => el.dataset.userId));
+                // Проверяем наличие элементов игроков в DOM
+                const playersGrid = document.querySelector('.players-grid');
+                if (!playersGrid || playersGrid.children.length <= 2) { // 2 - заголовки
+                    appLogger.warn('DOM не содержит данных игроков, требуется полная перерисовка');
                 }
                 
-                appLogger.error('Элемент статуса не найден', { userId });
+                // Обновляем статус игрока в массиве данных, если он там есть
+                const playerIndex = playersData.findIndex(p => p.userId === userId);
+                if (playerIndex !== -1) {
+                    playersData[playerIndex].isReady = isReady;
+                }
                 
-                // Если не нашли элемент, попробуем перестроить весь UI комнаты
-                updateRoomUI();
+                // Если элемент не найден, обновляем весь UI комнаты
+                // Используем setTimeout для предотвращения циклических вызовов
+                setTimeout(() => {
+                    updateRoomUI();
+                }, 50);
             }
         } catch (error) {
-            console.error('Ошибка при обновлении статуса:', error);
-            appLogger.error('Ошибка при обновлении статуса игрока', { error: error.message });
+            appLogger.error('Ошибка при обновлении статуса игрока', { error: error.message, userId, isReady });
+            console.error('Детали ошибки:', error);
+            
+            // В случае ошибки также обновляем весь UI для восстановления
+            setTimeout(() => {
+                try {
+                    updateRoomUI();
+                } catch (e) {
+                    appLogger.error('Ошибка при восстановлении UI комнаты', { error: e.message });
+                }
+            }, 100);
         }
     }
 
@@ -680,6 +894,33 @@
     }
 
     /**
+     * Отправляет запрос на выход из комнаты
+     * Явно уведомляет сервер, что игрок покидает комнату
+     */
+    function leaveRoom() {
+        if (!socketService || !socketService.isConnected()) {
+            appLogger.warn('Нет соединения с сервером для отправки уведомления о выходе из комнаты');
+            return;
+        }
+        
+        if (!userData || !roomId) {
+            appLogger.warn('Нет данных пользователя или ID комнаты для выхода из комнаты');
+            return;
+        }
+        
+        // Отправляем уведомление о выходе из комнаты
+        socketService.emit('leaveRoom', {
+            roomId: roomId,
+            userId: userData.id
+        });
+        
+        appLogger.info('Отправлено уведомление о выходе из комнаты', { 
+            roomId, 
+            userId: userData.id 
+        });
+    }
+
+    /**
      * Очищает ресурсы компонента при скрытии экрана
      */
     function cleanupRoomView() {
@@ -701,7 +942,7 @@
 
     // Экспортируем компонент в глобальное пространство имен
     window.roomComponent = {
-        init: initRoomView,
+        init: init,
         cleanup: cleanupRoomView
     };
 })(); // Конец IIFE 

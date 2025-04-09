@@ -302,11 +302,55 @@
             if (data && data.roomId) {
                 appLogger.info('Присоединился к существующей комнате', { roomId: data.roomId });
                 
+                // Явно выводим логи для диагностики
+                console.log('=== ПРИСОЕДИНЕНИЕ К СУЩЕСТВУЮЩЕЙ КОМНАТЕ ===');
+                console.log('Получены данные комнаты:', data);
+                
                 // Сохраняем ID комнаты в localStorage
                 localStorage.setItem('lastRoomId', data.roomId);
                 
-                // Переходим на экран комнаты
-                app.showScreen('room', { roomId: data.roomId });
+                try {
+                    // Очищаем текущие обработчики перед переходом на экран комнаты
+                    cleanupMainMenu();
+                    
+                    // Явно скрываем главное меню перед показом комнаты
+                    const mainMenu = document.getElementById('main-menu');
+                    if (mainMenu) {
+                        mainMenu.style.display = 'none';
+                    }
+                    
+                    // Явно показываем экран комнаты
+                    const roomScreen = document.getElementById('room');
+                    if (roomScreen) {
+                        roomScreen.style.display = 'block';
+                    }
+                    
+                    // Задержка на короткое время, чтобы DOM успел обновиться
+                    setTimeout(() => {
+                        // Переходим на экран комнаты с явным указанием всех параметров
+                        app.showScreen('room', { 
+                            roomId: data.roomId,
+                            room: data.room,
+                            showImmediately: true
+                        });
+                        
+                        appLogger.info('Переключение на экран комнаты выполнено', { roomId: data.roomId });
+                    }, 50);
+                } catch (error) {
+                    appLogger.error('Ошибка при переключении на экран комнаты', { 
+                        error: error.message,
+                        roomId: data.roomId
+                    });
+                    
+                    console.error('Детали ошибки:', error);
+                    
+                    // В случае ошибки пытаемся показать экран напрямую через более длительную задержку
+                    setTimeout(() => {
+                        app.showScreen('room', { roomId: data.roomId, showImmediately: true });
+                    }, 500);
+                }
+            } else {
+                appLogger.error('Получены некорректные данные в событии roomJoined', data);
             }
         });
     }

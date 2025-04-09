@@ -248,30 +248,94 @@ io.on('connection', (socket) => {
         }
     });
     
+    /**
+     * Удаляет игрока из комнаты и отправляет уведомления
+     * @param {string} roomId - ID комнаты
+     * @param {string} userId - ID игрока
+     * @param {string} reason - Причина выхода ("disconnect" или "leave")
+     */
+    function removePlayerFromRoom(roomId, userId, reason = 'leave') {
+        try {
+            // Получаем комнату и игрока до удаления
+            const room = roomsManager.getRoom(roomId);
+            if (!room) {
+                console.log(`Комната ${roomId} не найдена при выходе игрока ${userId}`);
+                return false;
+            }
+            
+            // Находим данные игрока до удаления
+            const player = room.players.find(p => p.userId === userId);
+            if (!player) {
+                console.log(`Игрок ${userId} не найден в комнате ${roomId} при выходе`);
+                return false;
+            }
+            
+            // Удаляем игрока из комнаты
+            const result = roomsManager.removePlayer(roomId, userId);
+            
+            // Если успешно удалили игрока
+            if (result.success) {
+                // Если это явный выход, удаляем сокет из комнаты Socket.IO
+                if (reason === 'leave') {
+                    socket.leave(`room_${roomId}`);
+                    socket.roomId = null;
+                }
+                
+                // Если комната не была удалена, уведомляем оставшихся игроков
+                if (!result.roomDeleted) {
+                    // Проверяем, что у игроков сохранены статусы готовности
+                    io.to(`room_${roomId}`).emit('playerLeft', {
+                        userId: userId,
+                        username: player.username,
+                        players: result.room.players, // Здесь уже содержатся правильные статусы
+                        preserveStatuses: true // Добавляем флаг для клиента, чтобы он не сбрасывал статусы
+                    });
+                    console.log(`Игрок ${player.username} (${userId}) ${reason === 'disconnect' ? 'отключился от' : 'вышел из'} комнаты ${roomId}`);
+                } else {
+                    // Если комната была удалена из-за отсутствия игроков
+                    console.log(`Комната ${roomId} удалена после выхода игрока ${player.username} (${userId}), так как в ней не осталось игроков`);
+                }
+                
+                return true;
+            }
+            
+            return false;
+        } catch (error) {
+            console.error(`Ошибка при удалении игрока ${userId} из комнаты ${roomId}:`, error);
+            return false;
+        }
+    }
+    
     // Обработка события отключения
     socket.on('disconnect', () => {
         console.log(`Соединение закрыто: ${socket.id}, userId: ${socket.userId}, roomId: ${socket.roomId}`);
         
         // Если игрок был в комнате, удаляем его из неё
         if (socket.roomId && socket.userId) {
-            try {
-                // Удаляем игрока из комнаты
-                const result = roomsManager.removePlayer(socket.roomId, socket.userId);
-                
-                // Если комната не была удалена, уведомляем оставшихся игроков
-                if (result.success && !result.roomDeleted && !result.roomScheduledForDeletion) {
-                    io.to(`room_${socket.roomId}`).emit('playerLeft', {
-                        userId: socket.userId,
-                        username: result.player.username,
-                        players: result.room.players
-                    });
-                    
-                    console.log(`Игрок ${result.player.username} (${socket.userId}) покинул комнату ${socket.roomId}`);
-                }
-                
-            } catch (error) {
-                console.error('Ошибка при удалении игрока из комнаты:', error);
+            removePlayerFromRoom(socket.roomId, socket.userId, 'disconnect');
+        }
+    });
+    
+    // Обработка события явного выхода из комнаты
+    socket.on('leaveRoom', (data) => {
+        console.log(`Запрос на выход из комнаты: ${JSON.stringify(data)}`);
+        
+        try {
+            // Проверяем валидность данных
+            if (!data || !data.roomId || !data.userId) {
+                socket.emit('error', { message: 'Неверные данные для выхода из комнаты' });
+                return;
             }
+            
+            // Удаляем игрока из комнаты
+            const success = removePlayerFromRoom(data.roomId, data.userId, 'leave');
+            
+            if (!success) {
+                socket.emit('error', { message: 'Ошибка при выходе из комнаты' });
+            }
+        } catch (error) {
+            console.error('Ошибка при выходе игрока из комнаты:', error);
+            socket.emit('error', { message: 'Ошибка при выходе из комнаты' });
         }
     });
     
