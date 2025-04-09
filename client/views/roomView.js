@@ -164,6 +164,7 @@
                 playerLeft: handlePlayerLeft,
                 playerStatusChanged: handlePlayerStatusChanged,
                 allPlayersReady: handleAllPlayersReady,
+                countdownCancelled: handleCountdownCancelled,
                 startGame: handleStartGame,
                 roomError: handleRoomError
             };
@@ -335,6 +336,9 @@
             username: data.username || 'Неизвестный игрок'
         });
         
+        // Проверяем, идет ли сейчас обратный отсчет
+        const isCountdownActive = countdownInterval !== null;
+        
         // Обновляем список игроков
         if (data.players && Array.isArray(data.players)) {
             appLogger.debug('Получен обновленный список игроков', { count: data.players.length });
@@ -386,6 +390,16 @@
         }
         
         console.log('Список игроков после обновления:', playersData);
+        
+        // Если был активен обратный отсчет и осталось менее 2 игроков, останавливаем его
+        // Это дополнительная мера безопасности на случай, если событие countdownCancelled не пришло
+        if (isCountdownActive && playersData.length < 2) {
+            console.log('Останавливаем отсчет из-за недостаточного количества игроков (менее 2)');
+            stopCountdown('notEnoughPlayers');
+            
+            // Показываем сообщение пользователю
+            showMessage(`Недостаточно игроков для начала игры (минимум 2). Обратный отсчет отменен.`);
+        }
         
         // Принудительно обновляем весь UI комнаты
         updateRoomUI();
@@ -872,6 +886,12 @@
         // Показываем таймер
         countdownTimer.style.display = 'flex';
         
+        // Скрываем кнопку "Назад" во время отсчета
+        const backButton = document.getElementById('back-button');
+        if (backButton) {
+            backButton.style.display = 'none';
+        }
+        
         // Устанавливаем начальное значение
         let secondsLeft = seconds;
         countdownValue.textContent = secondsLeft;
@@ -891,6 +911,32 @@
         }, 1000);
         
         appLogger.info('Запущен обратный отсчет', { seconds });
+    }
+    
+    /**
+     * Останавливает обратный отсчет
+     * @param {string} reason - Причина остановки отсчета
+     */
+    function stopCountdown(reason = 'unknown') {
+        // Останавливаем интервал
+        if (countdownInterval) {
+            clearInterval(countdownInterval);
+            countdownInterval = null;
+        }
+        
+        // Скрываем таймер
+        const countdownTimer = document.getElementById('countdown-timer');
+        if (countdownTimer) {
+            countdownTimer.style.display = 'none';
+        }
+        
+        // Показываем кнопку "Назад"
+        const backButton = document.getElementById('back-button');
+        if (backButton) {
+            backButton.style.display = 'block';
+        }
+        
+        appLogger.info('Остановлен обратный отсчет', { reason });
     }
 
     /**
@@ -940,9 +986,113 @@
         }
     }
 
+    /**
+     * Обработчик события отмены обратного отсчета
+     * @param {Object} data - Данные об отмене отсчета
+     */
+    function handleCountdownCancelled(data) {
+        console.log('=== ОТМЕНА ОБРАТНОГО ОТСЧЕТА ===');
+        console.log('Причина:', data.reason);
+        console.log('Игрок:', data.playerName, data.playerId);
+        console.log('Осталось игроков:', data.playersCount || 'неизвестно');
+        
+        appLogger.info('Отменен обратный отсчет', { 
+            reason: data.reason,
+            playerName: data.playerName,
+            playerId: data.playerId,
+            playersCount: data.playersCount
+        });
+        
+        // Останавливаем отсчет
+        stopCountdown(data.reason);
+        
+        // Показываем сообщение пользователю
+        let message = '';
+        if (data.reason === 'notEnoughPlayers') {
+            message = `Недостаточно игроков для начала игры (минимум 2). Обратный отсчет отменен.`;
+        } else if (data.reason === 'playerDisconnected') {
+            message = `Игрок ${data.playerName} отключился. Обратный отсчет отменен.`;
+        } else if (data.reason === 'playerLeft') {
+            message = `Игрок ${data.playerName} покинул комнату. Обратный отсчет отменен.`;
+        } else {
+            message = 'Обратный отсчет отменен.';
+        }
+        
+        // Показываем сообщение пользователю
+        if (message) {
+            showMessage(message);
+        }
+    }
+    
+    /**
+     * Показывает сообщение пользователю
+     * @param {string} message - Текст сообщения
+     * @param {number} duration - Длительность показа в миллисекундах
+     */
+    function showMessage(message, duration = 3000) {
+        // Проверяем существование контейнера для сообщений
+        let messageContainer = document.getElementById('message-container');
+        
+        // Если контейнера нет, создаем его
+        if (!messageContainer) {
+            messageContainer = document.createElement('div');
+            messageContainer.id = 'message-container';
+            messageContainer.style.position = 'fixed';
+            messageContainer.style.top = '20%';
+            messageContainer.style.left = '50%';
+            messageContainer.style.transform = 'translateX(-50%)';
+            messageContainer.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+            messageContainer.style.color = 'white';
+            messageContainer.style.padding = '12px 20px';
+            messageContainer.style.borderRadius = '8px';
+            messageContainer.style.textAlign = 'center';
+            messageContainer.style.zIndex = '1000';
+            messageContainer.style.maxWidth = '80%';
+            messageContainer.style.fontWeight = '500';
+            messageContainer.style.fontSize = '16px';
+            messageContainer.style.display = 'none';
+            
+            document.body.appendChild(messageContainer);
+        }
+        
+        // Устанавливаем текст сообщения
+        messageContainer.textContent = message;
+        
+        // Показываем сообщение
+        messageContainer.style.display = 'block';
+        
+        // Скрываем сообщение через указанное время
+        setTimeout(() => {
+            messageContainer.style.display = 'none';
+        }, duration);
+    }
+
+    /**
+     * Публичная функция для выхода из комнаты при закрытии приложения
+     */
+    function exitRoom() {
+        appLogger.info('Выход из комнаты при закрытии приложения');
+        
+        try {
+            // Останавливаем отсчет, если он запущен
+            if (countdownInterval) {
+                stopCountdown('appClosing');
+            }
+            
+            // Отправляем уведомление о выходе
+            leaveRoom();
+            
+            // Очищаем ресурсы компонента
+            cleanupRoomView();
+        } catch (error) {
+            appLogger.error('Ошибка при выходе из комнаты', { error: error.message });
+        }
+    }
+
     // Экспортируем компонент в глобальное пространство имен
     window.roomComponent = {
         init: init,
-        cleanup: cleanupRoomView
+        cleanup: cleanupRoomView,
+        exitRoom: exitRoom
     };
 })(); // Конец IIFE 

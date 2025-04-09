@@ -363,12 +363,42 @@ function findOrCreateRoom(player) {
     };
 }
 
+/**
+ * Отменяет обратный отсчет перед началом игры
+ * @param {string} roomId - ID комнаты
+ * @returns {Object} - Объект с результатом операции
+ */
+function cancelCountdown(roomId) {
+    // Проверяем существование комнаты
+    if (!rooms.has(roomId)) {
+        console.log(`Комната не найдена при отмене отсчета: ${roomId}`);
+        return { success: false, error: 'ROOM_NOT_FOUND', message: 'Комната не найдена' };
+    }
+    
+    const room = rooms.get(roomId);
+    
+    // Проверяем наличие активного отсчета
+    if (!room.countdown) {
+        console.log(`Нет активного отсчета для отмены в комнате ${roomId}`);
+        return { success: false, error: 'NO_ACTIVE_COUNTDOWN', message: 'Нет активного отсчета для отмены' };
+    }
+    
+    // Отменяем таймер отсчета
+    clearTimeout(room.countdown);
+    room.countdown = null;
+    
+    console.log(`Отменен обратный отсчет в комнате ${roomId}`);
+    
+    return { success: true, room };
+}
+
 // Экспортируем функции модуля
 module.exports = {
     createRoom,
     joinRoom,
     togglePlayerReady,
     startCountdown,
+    cancelCountdown,
     getRoom,
     removePlayer,
     getAllRooms,

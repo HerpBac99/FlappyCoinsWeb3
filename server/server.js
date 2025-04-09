@@ -270,6 +270,9 @@ io.on('connection', (socket) => {
                 return false;
             }
             
+            // Проверяем, был ли активен обратный отсчет
+            const countdownActive = room.countdown !== null;
+            
             // Удаляем игрока из комнаты
             const result = roomsManager.removePlayer(roomId, userId);
             
@@ -283,13 +286,27 @@ io.on('connection', (socket) => {
                 
                 // Если комната не была удалена, уведомляем оставшихся игроков
                 if (!result.roomDeleted) {
-                    // Проверяем, что у игроков сохранены статусы готовности
+                    // Отправляем уведомление об отключении игрока
                     io.to(`room_${roomId}`).emit('playerLeft', {
                         userId: userId,
                         username: player.username,
-                        players: result.room.players, // Здесь уже содержатся правильные статусы
-                        preserveStatuses: true // Добавляем флаг для клиента, чтобы он не сбрасывал статусы
+                        players: result.room.players,
+                        preserveStatuses: true
                     });
+                    
+                    // Если был активен обратный отсчет и осталось меньше 2 игроков, отменяем отсчет
+                    if (countdownActive && result.room.players.length < 2) {
+                        roomsManager.cancelCountdown(roomId);
+                        
+                        io.to(`room_${roomId}`).emit('countdownCancelled', {
+                            reason: reason === 'disconnect' ? 'notEnoughPlayers' : 'playerLeft',
+                            playerId: userId,
+                            playerName: player.username,
+                            playersCount: result.room.players.length
+                        });
+                        console.log(`Отменен обратный отсчет в комнате ${roomId} из-за недостаточного количества игроков (${result.room.players.length})`);
+                    }
+                    
                     console.log(`Игрок ${player.username} (${userId}) ${reason === 'disconnect' ? 'отключился от' : 'вышел из'} комнаты ${roomId}`);
                 } else {
                     // Если комната была удалена из-за отсутствия игроков

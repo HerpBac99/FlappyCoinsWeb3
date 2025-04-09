@@ -81,10 +81,24 @@ function initApp() {
  * Инициализирует функции Telegram
  */
 function initTelegramFeatures() {
-    if (typeof initTelegramFullscreen === 'function') {
-        initTelegramFullscreen();
-    } else {
-        appLogger.error('Функция инициализации полноэкранного режима не найдена');
+    try {
+        // Инициализируем полноэкранный режим
+        if (typeof initTelegramFullscreen === 'function') {
+            initTelegramFullscreen();
+        } else {
+            appLogger.error('Функция инициализации полноэкранного режима не найдена');
+        }
+        
+        // Настраиваем обработчики событий Telegram
+        if (typeof setupTelegramEvents === 'function') {
+            setupTelegramEvents();
+        } else {
+            appLogger.warn('Функция настройки событий Telegram не найдена');
+        }
+        
+        appLogger.info('Функции Telegram инициализированы');
+    } catch (error) {
+        appLogger.error('Ошибка при инициализации функций Telegram', { error: error.message });
     }
 }
 

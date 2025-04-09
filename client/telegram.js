@@ -192,11 +192,79 @@ function safeCallTgMethod(tgApp, methodName, args) {
     }
 }
 
+/**
+ * Настраивает обработчики событий Telegram WebApp
+ */
+function setupTelegramEvents() {
+    if (!tgApp) {
+        console.warn('Telegram WebApp API не доступен');
+        return false;
+    }
+    
+    try {
+        // Обработчик события закрытия приложения
+        if (typeof tgApp.onEvent === 'function') {
+            tgApp.onEvent('viewportChanged', handleViewportChanged);
+            tgApp.onEvent('close', handleTelegramClose);
+        }
+        
+        console.log('Успешная регистрация обработчиков событий Telegram');
+        return true;
+    } catch (error) {
+        console.error('Ошибка при регистрации обработчиков событий Telegram:', error);
+        return false;
+    }
+}
+
+/**
+ * Обработчик события изменения вьюпорта
+ * @param {Object} eventData - Данные события
+ */
+function handleViewportChanged(eventData) {
+    console.log('Изменение вьюпорта Telegram:', eventData);
+    
+    // Обновляем высоту для полноэкранного режима
+    if (eventData && eventData.height) {
+        document.body.style.height = `${eventData.height}px`;
+    }
+}
+
+/**
+ * Обработчик события закрытия приложения Telegram
+ */
+function handleTelegramClose() {
+    console.log('Событие закрытия приложения Telegram');
+    
+    try {
+        // Если игрок находится в комнате, отправляем уведомление о выходе
+        const appState = window.app ? window.app.getState() : null;
+        if (appState && appState.currentScreen && appState.currentScreen.id === 'room' && window.roomComponent) {
+            // Вызываем функцию leaveRoom из компонента комнаты
+            if (typeof window.roomComponent.exitRoom === 'function') {
+                window.roomComponent.exitRoom();
+            } else {
+                // Пытаемся найти и выполнить функцию leaveRoom через window
+                if (window.leaveRoom && typeof window.leaveRoom === 'function') {
+                    window.leaveRoom();
+                }
+            }
+            
+            // Отключаем сокет перед закрытием
+            if (window.socketService && typeof window.socketService.disconnect === 'function') {
+                window.socketService.disconnect();
+            }
+        }
+    } catch (error) {
+        console.error('Ошибка при обработке закрытия приложения Telegram:', error);
+    }
+}
+
 // Экспортируем функции в глобальный объект window
 window.tgApp = tgApp;
 window.initTelegramFullscreen = initTelegramFullscreen;
 window.getUserData = getUserData;
 window.safeCallTgMethod = safeCallTgMethod;
+window.setupTelegramEvents = setupTelegramEvents;
 
 // Автоматически инициализируем полноэкранный режим при загрузке скрипта
 document.addEventListener('DOMContentLoaded', () => {
