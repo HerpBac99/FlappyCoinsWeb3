@@ -274,6 +274,63 @@ io.on('connection', (socket) => {
             }
         }
     });
+    
+    // Обработка события поиска или создания комнаты
+    socket.on('findOrCreateRoom', (playerData) => {
+        console.log(`Запрос на поиск или создание комнаты от игрока: ${JSON.stringify(playerData)}`);
+        
+        try {
+            // Проверяем валидность данных игрока
+            if (!playerData || !playerData.userId) {
+                socket.emit('error', { message: 'Неверные данные игрока' });
+                return;
+            }
+            
+            // Ищем доступную комнату или создаем новую
+            const result = roomsManager.findOrCreateRoom(playerData);
+            
+            // Добавляем сокет в комнату Socket.IO
+            socket.join(`room_${result.roomId}`);
+            
+            // Сохраняем ID комнаты в объекте сокета
+            socket.roomId = result.roomId;
+            
+            if (result.operation === 'joined') {
+                // Если присоединились к существующей комнате
+                console.log(`Игрок ${playerData.username} (${playerData.userId}) присоединился к существующей комнате ${result.roomId}`);
+                
+                // Отправляем ответ клиенту
+                socket.emit('roomJoined', { 
+                    roomId: result.roomId,
+                    room: result.room
+                });
+                
+                // Если это новый игрок, уведомляем остальных участников комнаты
+                if (result.isNewPlayer) {
+                    // Находим данные нового игрока
+                    const newPlayer = result.room.players.find(p => p.userId === playerData.userId);
+                    
+                    // Отправляем уведомление остальным участникам (кроме текущего)
+                    socket.to(`room_${result.roomId}`).emit('playerJoined', {
+                        player: newPlayer,
+                        players: result.room.players
+                    });
+                }
+            } else {
+                // Если создали новую комнату
+                console.log(`Создана новая комната: ${result.roomId}, игрок: ${playerData.username} (${playerData.userId})`);
+                
+                // Отправляем ответ клиенту
+                socket.emit('roomCreated', { 
+                    roomId: result.roomId,
+                    players: result.room.players
+                });
+            }
+        } catch (error) {
+            console.error('Ошибка при поиске или создании комнаты:', error);
+            socket.emit('error', { message: 'Ошибка при поиске или создании комнаты' });
+        }
+    });
 });
 
 // API-эндпоинт для получения данных пользователя

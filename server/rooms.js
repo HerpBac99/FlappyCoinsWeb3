@@ -315,6 +315,49 @@ function deleteRoom(roomId) {
     return result;
 }
 
+/**
+ * Ищет доступную комнату или создает новую, если нет свободных
+ * @param {Object} player - Объект с данными игрока
+ * @returns {Object} - Объект с данными о найденной или созданной комнате и типе операции
+ */
+function findOrCreateRoom(player) {
+    // Ищем все активные комнаты
+    const activeRooms = getAllRooms();
+    
+    // Ищем комнату с менее чем максимальным количеством игроков и не начатой игрой
+    const availableRoom = activeRooms.find(room => 
+        room.players.length < MAX_PLAYERS_PER_ROOM && 
+        !room.isGameStarted &&
+        // Проверяем, что игрок еще не в этой комнате
+        !room.players.some(p => p.userId === player.userId)
+    );
+    
+    // Если нашли доступную комнату, присоединяем игрока к ней
+    if (availableRoom) {
+        console.log(`Найдена доступная комната ${availableRoom.id} для игрока ${player.username} (${player.userId})`);
+        const joinResult = joinRoom(availableRoom.id, player);
+        
+        if (joinResult.success) {
+            return {
+                operation: 'joined',
+                roomId: availableRoom.id,
+                room: joinResult.room,
+                isNewPlayer: joinResult.isNewPlayer
+            };
+        }
+    }
+    
+    // Если не нашли доступной комнаты или не смогли присоединиться, создаем новую
+    console.log(`Создание новой комнаты для игрока ${player.username} (${player.userId}), доступные комнаты не найдены`);
+    const createResult = createRoom(player);
+    
+    return {
+        operation: 'created',
+        roomId: createResult.roomId,
+        room: createResult.room
+    };
+}
+
 // Экспортируем функции модуля
 module.exports = {
     createRoom,
@@ -325,6 +368,7 @@ module.exports = {
     removePlayer,
     getAllRooms,
     deleteRoom,
+    findOrCreateRoom,
     MAX_PLAYERS_PER_ROOM,
     COUNTDOWN_TIME
 };

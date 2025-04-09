@@ -388,80 +388,85 @@
     }
 
     /**
-     * Обновляет UI комнаты с текущими данными игроков
+     * Обновляет интерфейс комнаты согласно текущим данным
      */
     function updateRoomUI() {
         try {
+            // Обновляем заголовок с ID комнаты
+            updateRoomInfo();
+            
+            // Обновляем таблицу игроков
+            const playersGrid = document.querySelector('.players-grid');
+            
+            // Удаляем строки игроков (оставляем только заголовки)
+            const headerElements = document.querySelectorAll('.grid-header');
+            const lastHeaderIndex = headerElements.length - 1;
+            
+            // Очищаем все элементы после заголовков
+            const childrenToRemove = [];
+            for (let i = lastHeaderIndex + 1; i < playersGrid.children.length; i++) {
+                childrenToRemove.push(playersGrid.children[i]);
+            }
+            
+            // Удаляем элементы
+            childrenToRemove.forEach(child => child.remove());
+            
+            // Добавляем игроков
+            playersData.forEach(player => {
+                // Создаем ячейку с именем игрока
+                const playerNameCell = document.createElement('div');
+                playerNameCell.className = 'player-cell player-name';
+                
+                const playerInfo = document.createElement('div');
+                playerInfo.className = 'player-info';
+                
+                // Аватар
+                const avatar = document.createElement('img');
+                avatar.className = 'player-avatar';
+                avatar.src = player.photoUrl || 'assets/default-avatar.png';
+                avatar.alt = player.username;
+                
+                // Имя пользователя
+                const name = document.createElement('span');
+                name.textContent = player.username;
+                
+                // Добавляем элементы к информации о пользователе
+                playerInfo.appendChild(avatar);
+                playerInfo.appendChild(name);
+                playerNameCell.appendChild(playerInfo);
+                
+                // Создаем ячейку со статусом
+                const playerStatusCell = document.createElement('div');
+                playerStatusCell.className = 'player-cell player-status';
+                
+                // Если это текущий пользователь, делаем ячейку кликабельной
+                if (player.userId == userData.id) {
+                    playerStatusCell.classList.add('clickable');
+                    playerStatusCell.addEventListener('click', toggleReadyStatus);
+                }
+                
+                // Создаем индикатор статуса
+                const statusCircle = document.createElement('div');
+                statusCircle.className = player.isReady ? 'status-circle ready' : 'status-circle not-ready';
+                statusCircle.dataset.userId = player.userId;
+                statusCircle.innerHTML = player.isReady ? '✓' : '✗';
+                
+                // Добавляем индикатор к ячейке
+                playerStatusCell.appendChild(statusCircle);
+                
+                // Добавляем ячейки к сетке
+                playersGrid.appendChild(playerNameCell);
+                playersGrid.appendChild(playerStatusCell);
+            });
+            
             // Обновляем счетчик игроков
             const playersCountElement = document.getElementById('players-count');
             if (playersCountElement) {
                 playersCountElement.textContent = `Игроков: ${playersData.length}/6`;
             }
             
-            // Получаем сетку игроков
-            const playersGrid = document.querySelector('.players-grid');
-            if (!playersGrid) {
-                appLogger.error('Не найдена сетка игроков');
-                return;
-            }
-            
-            // Удаляем существующие строки игроков (кроме заголовков)
-            const existingPlayerElements = playersGrid.querySelectorAll('.player-cell:not(.grid-header)');
-            existingPlayerElements.forEach(el => el.remove());
-            
-            // Добавляем строки для каждого игрока
-            playersData.forEach(player => {
-                // Создаем элементы строки
-                const nameCell = document.createElement('div');
-                nameCell.className = 'player-cell player-name';
-                nameCell.dataset.userId = player.userId;
-                
-                // Создаем контейнер для аватара и имени
-                const playerInfo = document.createElement('div');
-                playerInfo.className = 'player-info';
-                
-                // Аватар игрока
-                const avatar = document.createElement('img');
-                avatar.className = 'player-avatar';
-                avatar.src = player.photoUrl || 'assets/default-avatar.png';
-                avatar.alt = player.username;
-                playerInfo.appendChild(avatar);
-                
-                // Имя игрока
-                const name = document.createElement('span');
-                name.textContent = player.username;
-                playerInfo.appendChild(name);
-                
-                // Добавляем информацию о игроке в ячейку
-                nameCell.appendChild(playerInfo);
-                
-                // Создаем ячейку для статуса
-                const statusCell = document.createElement('div');
-                statusCell.className = 'player-cell player-status';
-                statusCell.dataset.userId = player.userId;
-                
-                // Создаем индикатор статуса
-                const statusCircle = document.createElement('div');
-                statusCircle.className = `status-circle ${player.isReady ? 'ready' : 'not-ready'}`;
-                statusCircle.textContent = player.isReady ? '✓' : '✗';
-                statusCell.appendChild(statusCircle);
-                
-                // Добавляем обработчик нажатия для своего статуса
-                if (player.userId === userData.id) {
-                    statusCell.addEventListener('click', toggleReadyStatus);
-                    statusCell.classList.add('clickable');
-                }
-                
-                // Добавляем ячейки в сетку
-                playersGrid.appendChild(nameCell);
-                playersGrid.appendChild(statusCell);
-                
-                // Добавляем метки класса для строки
-                nameCell.classList.add('player-row');
-                statusCell.classList.add('player-row');
-            });
-            
             appLogger.debug('Обновлен UI комнаты', { playersCount: playersData.length });
+            
         } catch (error) {
             appLogger.error('Ошибка при обновлении UI комнаты', { error: error.message });
         }
@@ -474,14 +479,26 @@
      */
     function updatePlayerStatus(userId, isReady) {
         try {
-            const statusCell = document.querySelector(`.player-status[data-user-id="${userId}"]`);
-            if (statusCell) {
-                const statusCircle = statusCell.querySelector('.status-circle');
-                if (statusCircle) {
-                    // Обновляем классы и текст
-                    statusCircle.className = `status-circle ${isReady ? 'ready' : 'not-ready'}`;
-                    statusCircle.textContent = isReady ? '✓' : '✗';
+            appLogger.debug('Обновление статуса игрока в UI', { userId, isReady });
+            
+            // Находим статусный круг по data-userId атрибуту
+            const statusCircle = document.querySelector(`.status-circle[data-userId="${userId}"]`);
+            
+            if (statusCircle) {
+                // Обновляем классы
+                if (isReady) {
+                    statusCircle.classList.remove('not-ready');
+                    statusCircle.classList.add('ready');
+                } else {
+                    statusCircle.classList.remove('ready');
+                    statusCircle.classList.add('not-ready');
                 }
+                
+                // Обновляем текст
+                statusCircle.innerHTML = isReady ? '✓' : '✗';
+                appLogger.debug('Статус игрока обновлен в UI', { userId, isReady });
+            } else {
+                appLogger.error('Элемент статуса не найден', { userId });
             }
         } catch (error) {
             appLogger.error('Ошибка при обновлении статуса игрока', { error: error.message });

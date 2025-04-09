@@ -155,7 +155,7 @@
         // Логируем нажатие на кнопку
         appLogger.info('Нажата кнопка "Играть"');
         
-        // Проверяем соединение перед созданием комнаты
+        // Проверяем соединение перед поиском комнаты
         if (!socketService || !socketService.isConnected()) {
             appLogger.error('Нет соединения с сервером');
             // Попытка инициализировать сокет
@@ -165,7 +165,7 @@
                 // Даем время на подключение
                 setTimeout(() => {
                     if (socketService.isConnected()) {
-                        createGameRoom();
+                        findOrCreateGameRoom();
                     } else {
                         alert('Ошибка: нет соединения с сервером. Пожалуйста, проверьте подключение к интернету и перезагрузите приложение.');
                     }
@@ -176,8 +176,8 @@
             return;
         }
         
-        // Создаем новую комнату
-        createGameRoom();
+        // Ищем существующую комнату или создаем новую
+        findOrCreateGameRoom();
         
         // Визуальный эффект при нажатии
         const button = this;
@@ -204,17 +204,9 @@
     }
     
     /**
-     * Регистрирует обработчики событий сокета
+     * Ищет доступную комнату или создает новую
      */
-    function registerSocketHandlers() {
-        roomCreatedHandler = handleRoomCreated;
-        socketService.on('roomCreated', roomCreatedHandler);
-    }
-
-    /**
-     * Создает игровую комнату и переходит на экран комнаты
-     */
-    function createGameRoom() {
+    function findOrCreateGameRoom() {
         if (!socketService || !socketService.isConnected()) {
             appLogger.error('Нет соединения с сервером');
             alert('Ошибка: нет соединения с сервером');
@@ -227,14 +219,17 @@
             return;
         }
         
-        // Отправляем запрос на создание комнаты
-        socketService.emit('createRoom', { 
+        // Показываем индикатор загрузки перед поиском комнаты
+        showLoadingOverlay();
+        
+        // Отправляем запрос на поиск доступной комнаты или создание новой
+        socketService.emit('findOrCreateRoom', { 
             userId: userData.id,
             username: userData.username || 'Аноним', 
             photoUrl: userData.photo_url || 'assets/default-avatar.png' 
         });
         
-        appLogger.info('Отправлен запрос на создание комнаты');
+        appLogger.info('Отправлен запрос на поиск или создание комнаты');
     }
 
     /**
@@ -296,6 +291,27 @@
     }
     
     /**
+     * Регистрирует обработчики событий сокета
+     */
+    function registerSocketHandlers() {
+        roomCreatedHandler = handleRoomCreated;
+        socketService.on('roomCreated', roomCreatedHandler);
+        
+        // Добавляем обработчик для события присоединения к существующей комнате
+        socketService.on('roomJoined', function(data) {
+            if (data && data.roomId) {
+                appLogger.info('Присоединился к существующей комнате', { roomId: data.roomId });
+                
+                // Сохраняем ID комнаты в localStorage
+                localStorage.setItem('lastRoomId', data.roomId);
+                
+                // Переходим на экран комнаты
+                app.showScreen('room', { roomId: data.roomId });
+            }
+        });
+    }
+
+    /**
      * Удаляет обработчики сокетов
      */
     function unregisterSocketHandlers() {
@@ -303,6 +319,9 @@
             socketService.off('roomCreated', roomCreatedHandler);
             roomCreatedHandler = null;
         }
+        
+        // Удаляем обработчик присоединения к комнате
+        socketService.off('roomJoined');
     }
 
     // Экспортируем компонент в глобальное пространство имен

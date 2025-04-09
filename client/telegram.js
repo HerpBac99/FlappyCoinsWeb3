@@ -114,7 +114,7 @@ function getUserData() {
         if (tgApp && tgApp.initDataUnsafe && tgApp.initDataUnsafe.user) {
             userData = {
                 id: tgApp.initDataUnsafe.user.id,
-                username: tgApp.initDataUnsafe.user.username || `User${tgApp.initDataUnsafe.user.id}`,
+                username: tgApp.initDataUnsafe.user.username || tgApp.initDataUnsafe.user.first_name || `User${tgApp.initDataUnsafe.user.id}`,
                 first_name: tgApp.initDataUnsafe.user.first_name,
                 last_name: tgApp.initDataUnsafe.user.last_name,
                 photo_url: tgApp.initDataUnsafe.user.photo_url

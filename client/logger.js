@@ -160,9 +160,11 @@ const Logger = {
         const logToolbar = document.createElement('div');
         logToolbar.style.cssText = `
             display: flex;
-            justify-content: flex-start;
+            justify-content: space-between;
+            flex-wrap: wrap;
             gap: 10px;
             margin-top: 10px;
+            width: 100%;
         `;
         
         const copyLogsBtn = document.createElement('button');
@@ -185,13 +187,17 @@ const Logger = {
         const style = document.createElement('style');
         style.textContent = `
             .log-btn {
-                padding: 6px 12px;
                 background-color: #40a7e3;
                 color: white;
                 border: none;
                 border-radius: 4px;
                 cursor: pointer;
                 font-size: 12px;
+                flex: 1;
+                padding: 10px;
+                min-width: 70px;
+                text-align: center;
+                margin-bottom: 30px;
             }
             .log-btn:hover {
                 background-color: #2c7db2;
@@ -205,6 +211,18 @@ const Logger = {
             .log-debug { color: #80deea; }
             .log-warn { color: #ffcc80; }
             .log-error { color: #ef9a9a; }
+            
+            @media (max-width: 480px) {
+                .log-btn {
+                    padding: 8px 4px;
+                    font-size: 11px;
+                    min-width: 60px;
+                }
+                
+                .log-toolbar {
+                    justify-content: center;
+                }
+            }
         `;
         
         // Собираем структуру UI
@@ -431,14 +449,27 @@ const Logger = {
         const previousContent = logContent.innerHTML;
         logContent.innerHTML = '<div style="text-align: center; padding: 20px;">Отправка логов на сервер...</div>';
         
+        // Получаем данные пользователя из приложения
+        let userData = null;
+        if (window.app && window.app.getState) {
+            userData = window.app.getState().userData;
+        }
+        
         // Собираем данные для отправки
         const logsData = {
             logs: this.logs,
             userAgent: navigator.userAgent,
             appVersion: '1.0.0', // Версия приложения
             timestamp: new Date().toISOString(),
-            userData: window.userData || null
+            userData: userData || {}
         };
+        
+        // Логируем события отправки
+        console.log('Отправка логов на сервер', {
+            logsCount: this.logs.length,
+            timestamp: logsData.timestamp,
+            userData: userData ? userData.username : 'Нет данных пользователя'
+        });
         
         // Отправляем на сервер
         fetch(`/api/log`, {
