@@ -72,6 +72,7 @@
 /* Центральный контейнер с монетой */
 .center-container {
     margin-top: 200px;
+    height: 100vh;
     flex: 1; /* Устанавливаем flex 1 - заставляет элемент занимать все доступное пространство */
     display: flex; /* Устанавливаем display flex - делает элемент flex-контейнером */
     flex-direction: column; /* Устанавливаем flex-direction column - делает элементы контейнера вертикальной колонкой*/
@@ -154,7 +155,7 @@
 
 /* Стили кнопок */
 .menu-buttons {
-    margin-top: 40px; /* Устанавливаем margin-top 40px - отступ сверху*/
+    bottom: 50px; 
     display: flex; /* Устанавливаем display flex - делает элемент контейнером и позволяет использовать flexbox*/
     flex-direction: column; /* Устанавливаем flex-direction column - делает элементы контейнера вертикальной колонкой*/
     align-items: center; /* Устанавливаем align-items center - центрирует содержимое по горизонтали*/

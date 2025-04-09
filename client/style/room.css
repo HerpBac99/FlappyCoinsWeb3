@@ -41,33 +41,23 @@ body {
 .room-container {
     background-color: rgba(30, 39, 46, 0.85);
     border-radius: 15px;
-    width: calc(100% - 40px);
-    max-width: 800px;
-    margin: 20px auto;
-    padding: 25px;
+    width: 90%;
+    max-width: 600px;
+    margin: 100px auto 20px;
+    padding: 20px;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
     backdrop-filter: blur(8px);
     border: 1px solid rgba(255, 255, 255, 0.1);
     display: flex;
     flex-direction: column;
-    gap: 20px; /* Устанавливаем gap 20px - отступы между элементами*/
+    align-items: center;
+    gap: 15px;
     animation: fadeIn 0.5s ease-out;
 }
 
 @keyframes fadeIn {
     from { opacity: 0; transform: translateY(20px); }
     to { opacity: 1; transform: translateY(0); }
-}
-
-/* Стили для комнаты */
-.room {
-    width: 100%;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    background-color: var(--background-color);
-    color: var(--text-color);
-    padding: 20px;
 }
 
 /* Заголовок комнаты */
@@ -193,7 +183,12 @@ body {
     padding: 15px;
     background-color: rgba(0, 0, 0, 0.2);
     border-radius: 10px;
-    font-size: var(--font-text-size);
+    font-size: 13px; /* Уменьшен размер шрифта */
+}
+
+.status-info p {
+    font-size: 12px; /* Уменьшен размер шрифта для параграфа */
+    margin-bottom: 8px;
 }
 
 .status-examples {
@@ -240,10 +235,14 @@ body {
 
 /* Кнопка возврата */
 .back-button-container {
+    position: fixed;
+    bottom: 50px;
+    left: 0;
+    right: 0;
     width: 100%;
     display: flex;
     justify-content: center;
-    margin-top: 20px;
+    z-index: 10;
 }
 
 .back-button {
@@ -255,6 +254,11 @@ body {
     font-size: 16px;
     cursor: pointer;
     transition: all 0.3s ease;
+    width: 90%;
+    max-width: 280px;
+    text-transform: uppercase;
+    font-weight: bold;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 .back-button:hover {
@@ -265,7 +269,8 @@ body {
 /* Адаптивный дизайн */
 @media (max-width: 480px) {
     .room-container {
-        margin: 10px;
+        width: 95%;
+        margin: 50px auto 10px;
         padding: 15px;
     }
     
@@ -290,7 +295,11 @@ body {
     .status-circle {
         width: 24px;
         height: 24px;
-        font-size: 14px;
+        font-size: 13px;
+    }
+    
+    .status-info p {
+        font-size: 11px;
     }
     
     .countdown-value {
@@ -304,5 +313,6 @@ body {
     .back-button {
         padding: 10px 20px;
         font-size: 14px;
+        width: 95%;
     }
 } 
