@@ -5,60 +5,7 @@
 
 // Создаем компонент с помощью IIFE, чтобы изолировать переменные
 (function() {
-    // HTML-шаблон комнаты ожидания
-    const roomTemplate = `
-        <!-- Фоновое изображение с размытием -->
-        <div class="background-blur"></div>
-        
-        <!-- Основной контейнер комнаты с прямоугольной областью -->
-        <div class="room-container">
-            <!-- Контейнер с заголовком комнаты -->
-            <div class="room-header">
-                <h1>Комната №${localStorage.getItem('lastRoomId') || '...'}</h1>
-                <div class="room-info">
-                    <div id="room-id">ID: загрузка...</div>
-                    <div id="players-count">Игроков: 0/6</div>
-                </div>
-            </div>
-            
-            <!-- Сетка игроков -->
-            <div class="players-grid">
-                <!-- Строка заголовков таблицы -->
-                <div class="grid-header player-name">Игрок</div>
-                <div class="grid-header player-status">Статус</div>
-                
-                <!-- Игроки будут добавлены динамически через JavaScript -->
-            </div>
-            
-            <!-- Информация о статусе -->
-            <div class="status-info">
-                <p>Нажмите на свой статус, чтобы изменить готовность</p>
-                <div class="status-examples">
-                    <div class="status-example">
-                        <div class="status-circle not-ready">✗</div>
-                        <span>Не готов</span>
-                    </div>
-                    <div class="status-example">
-                        <div class="status-circle ready">✓</div>
-                        <span>Готов</span>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Кнопка возврата к главному меню -->
-            <div class="back-button-container">
-                <button id="back-button" class="back-button">← Назад в меню</button>
-            </div>
-        </div>
-        
-        <!-- Таймер обратного отсчета (скрыт по умолчанию) -->
-        <div id="countdown-timer" class="countdown-timer">
-            <div class="countdown-value">5</div>
-            <div class="countdown-text">секунд до начала</div>
-        </div>
-    `;
-
-    // Приватные переменные компонента (заменяют глобальные)
+    // Приватные переменные компонента
     let userData = null;
     let roomId = null;
     let container = null;
@@ -92,25 +39,17 @@
         }
         
         try {
-            // Скрываем индикатор загрузки
+            // Скрываем индикатор загрузки если есть
             const loadingOverlay = document.getElementById('loading-overlay');
             if (loadingOverlay) {
                 loadingOverlay.style.display = 'none';
             }
-            
-            // Отрисовываем шаблон
-            renderRoomView();
             
             // Обновляем ID комнаты в интерфейсе
             updateRoomInfo();
             
             // Настраиваем обработчики событий
             setupEventListeners();
-            
-            // Загружаем стиль комнаты, если не загружен
-            if (!document.getElementById('roomStyle')) {
-                loadStyles('style/room.css', 'roomStyle');
-            }
             
             // Регистрируем обработчики событий Socket.IO
             registerSocketHandlers();
@@ -124,24 +63,11 @@
     }
 
     /**
-     * Отрисовывает HTML-шаблон комнаты ожидания
-     */
-    function renderRoomView() {
-        if (!container) {
-            appLogger.error('Не указан контейнер для комнаты ожидания');
-            return;
-        }
-        
-        container.innerHTML = roomTemplate;
-        appLogger.debug('Отрисован шаблон комнаты ожидания');
-    }
-
-    /**
      * Обновляет информацию о комнате в интерфейсе
      */
     function updateRoomInfo() {
         // Обновляем ID комнаты в заголовке
-        const roomHeader = document.querySelector('.room-header h1');
+        const roomHeader = document.getElementById('room-title');
         if (roomHeader) {
             roomHeader.textContent = `Комната №${roomId || '...'}`;
         }
@@ -163,10 +89,20 @@
             // Обработчик для кнопки "Назад"
             const backButton = document.getElementById('back-button');
             if (backButton) {
-                backButton.addEventListener('click', () => {
+                // Очищаем старые обработчики, клонируя элемент
+                const newBackButton = backButton.cloneNode(true);
+                backButton.parentNode.replaceChild(newBackButton, backButton);
+                
+                // Добавляем новый обработчик
+                newBackButton.addEventListener('click', function() {
                     appLogger.info('Нажата кнопка "Назад"');
+                    // Очищаем ресурсы компонента перед переходом
+                    cleanupRoomView();
+                    // Переходим в главное меню
                     app.showScreen('mainMenu');
                 });
+            } else {
+                appLogger.error('Кнопка "Назад" не найдена в DOM');
             }
         } catch (error) {
             appLogger.error('Ошибка при настройке обработчиков событий', { error: error.message });
@@ -480,9 +416,6 @@
                 nameCell.className = 'player-cell player-name';
                 nameCell.dataset.userId = player.userId;
                 
-                // Проверка, является ли текущий игрок владельцем комнаты
-                // const isRoomOwner = player.userId === data.room.createdBy;
-                
                 // Создаем контейнер для аватара и имени
                 const playerInfo = document.createElement('div');
                 playerInfo.className = 'player-info';
@@ -625,25 +558,6 @@
     }
 
     /**
-     * Загружает CSS-стиль, если он еще не загружен
-     * @param {string} url - Путь к CSS файлу
-     * @param {string} id - Идентификатор для элемента link
-     */
-    function loadStyles(url, id) {
-        if (document.getElementById(id)) {
-            return;
-        }
-        
-        const link = document.createElement('link');
-        link.id = id;
-        link.rel = 'stylesheet';
-        link.href = url;
-        document.head.appendChild(link);
-        
-        appLogger.debug(`Загружен стиль: ${url}`);
-    }
-
-    /**
      * Очищает ресурсы компонента при скрытии экрана
      */
     function cleanupRoomView() {
@@ -653,18 +567,6 @@
                 clearInterval(countdownInterval);
                 countdownInterval = null;
             }
-            
-            // Удаляем обработчики кнопок
-            const backButton = document.getElementById('back-button');
-            if (backButton) {
-                backButton.replaceWith(backButton.cloneNode(true));
-            }
-            
-            // Удаляем обработчики статусов игроков
-            const statusElements = document.querySelectorAll('.player-status-cell');
-            statusElements.forEach(element => {
-                element.replaceWith(element.cloneNode(true));
-            });
             
             // Удаляем обработчики Socket.IO
             unregisterSocketHandlers();

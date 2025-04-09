@@ -46,7 +46,55 @@
 
         <!-- Комната (скрыта по умолчанию) -->
         <div id="room" class="screen" style="display: none;">
-            <!-- Содержимое комнаты будет загружено динамически -->
+            <!-- Фоновое изображение с размытием -->
+            <div class="background-blur"></div>
+            
+            <!-- Основной контейнер комнаты -->
+            <div class="room-container">
+                <!-- Контейнер с заголовком комнаты -->
+                <div class="room-header">
+                    <h1 id="room-title">Комната №...</h1>
+                    <div class="room-info">
+                        <div id="room-id">ID: загрузка...</div>
+                        <div id="players-count">Игроков: 0/6</div>
+                    </div>
+                </div>
+                
+                <!-- Сетка игроков -->
+                <div class="players-grid">
+                    <!-- Строка заголовков таблицы -->
+                    <div class="grid-header player-name">Игрок</div>
+                    <div class="grid-header player-status">Статус</div>
+                    
+                    <!-- Игроки будут добавлены динамически через JavaScript -->
+                </div>
+                
+                <!-- Информация о статусе -->
+                <div class="status-info">
+                    <p>Нажмите на свой статус, чтобы изменить готовность</p>
+                    <div class="status-examples">
+                        <div class="status-example">
+                            <div class="status-circle not-ready">✗</div>
+                            <span>Не готов</span>
+                        </div>
+                        <div class="status-example">
+                            <div class="status-circle ready">✓</div>
+                            <span>Готов</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Кнопка возврата к главному меню -->
+                <div class="back-button-container">
+                    <button id="back-button" class="back-button">← Назад в меню</button>
+                </div>
+            </div>
+            
+            <!-- Таймер обратного отсчета (скрыт по умолчанию) -->
+            <div id="countdown-timer" class="countdown-timer">
+                <div class="countdown-value">5</div>
+                <div class="countdown-text">секунд до начала</div>
+            </div>
         </div>
     </div>
     
