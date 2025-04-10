@@ -24,7 +24,7 @@ alwaysApply: false
 - ✅ Используй Telegram API:  
   `tg.sendData()`, `tg.MainButton`, `tg.HapticFeedback`, `tg.expand()`
 
-- ✅ Реализуй поддержку **тёмной и светлой темы** на основе `tg.themeParams`
+- ✅ Все изменения делаем аккуратно, соблюдаем нейминг, если вызываем функцию првоеряем что она существует
 
 - ✅ Обменивайся данными с backend через `fetch` или `axios`
 

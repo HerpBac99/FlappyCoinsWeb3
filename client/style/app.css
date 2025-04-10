@@ -227,4 +227,26 @@ button:active {
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.5s ease-out;
+}
+
+/* Стили для игровой сцены */
+#game-scene {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 10;
+    background-color: var(--background-color);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+#game-canvas {
+    width: 100%;
+    height: 100%;
+    background-image: url('../assets/background-blur.png');
+    background-size: cover;
+    background-position: center;
 } 

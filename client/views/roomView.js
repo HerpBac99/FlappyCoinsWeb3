@@ -892,6 +892,19 @@
             backButton.style.display = 'none';
         }
         
+        // Плавно скрываем контейнер комнаты
+        const roomContainer = document.querySelector('.room-container');
+        if (roomContainer) {
+            roomContainer.style.transition = 'opacity 0.5s ease-out';
+            roomContainer.style.opacity = '0';
+        }
+        
+        // Скрываем главное меню (если оно вдруг видимо)
+        const mainMenu = document.getElementById('main-menu');
+        if (mainMenu) {
+            mainMenu.style.display = 'none';
+        }
+        
         // Устанавливаем начальное значение
         let secondsLeft = seconds;
         countdownValue.textContent = secondsLeft;
@@ -907,6 +920,15 @@
                 // Останавливаем таймер
                 clearInterval(countdownInterval);
                 countdownInterval = null;
+                
+                // Скрываем таймер
+                countdownTimer.style.display = 'none';
+                
+                // Показываем игровую сцену
+                const gameScene = document.getElementById('game-scene');
+                if (gameScene) {
+                    gameScene.style.display = 'block';
+                }
             }
         }, 1000);
         
@@ -934,6 +956,19 @@
         const backButton = document.getElementById('back-button');
         if (backButton) {
             backButton.style.display = 'block';
+        }
+        
+        // Восстанавливаем отображение контейнера комнаты
+        const roomContainer = document.querySelector('.room-container');
+        if (roomContainer) {
+            roomContainer.style.transition = 'opacity 0.5s ease-in';
+            roomContainer.style.opacity = '1';
+        }
+        
+        // Скрываем игровую сцену
+        const gameScene = document.getElementById('game-scene');
+        if (gameScene) {
+            gameScene.style.display = 'none';
         }
         
         appLogger.info('Остановлен обратный отсчет', { reason });
