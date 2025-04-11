@@ -249,4 +249,47 @@ button:active {
     background-image: url('../assets/background-blur.png');
     background-size: cover;
     background-position: center;
+}
+
+/* Стили для монет игроков */
+#player-coins-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 5;
+    pointer-events: none;
+}
+
+.player-coin {
+    position: absolute;
+    width: 40px;
+    height: 40px;
+    animation: coinFloat 2s ease-in-out infinite;
+    filter: drop-shadow(0px 4px 6px rgba(0, 0, 0, 0.3));
+    transition: transform 0.5s ease, opacity 0.5s ease;
+}
+
+/* Анимация плавного подъема и опускания монеты */
+@keyframes coinFloat {
+    0% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(-10px);
+    }
+    100% {
+        transform: translateY(0);
+    }
+}
+
+/* Анимация плавного вращения монеты */
+@keyframes coinRotate {
+    0% {
+        transform: rotateY(0deg);
+    }
+    100% {
+        transform: rotateY(360deg);
+    }
 } 

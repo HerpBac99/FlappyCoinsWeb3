@@ -24,6 +24,11 @@ const screens = {
         id: 'room',
         component: window.roomComponent,
         requiresAuth: true
+    },
+    game: {
+        id: 'game',
+        component: window.gameComponent,
+        requiresAuth: true
     }
 };
 

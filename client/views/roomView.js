@@ -500,7 +500,7 @@
      * @param {Object} data - Данные о запущенной игре
      */
     function handleStartGame(data) {
-        appLogger.info('Игра запущена', { roomId: data.roomId });
+        appLogger.info('Получено событие запуска игры', { roomId: data.roomId });
         
         // Очищаем интервал обратного отсчета, если он был
         if (countdownInterval) {
@@ -508,8 +508,36 @@
             countdownInterval = null;
         }
         
-        // Переход на экран игры
-        app.showScreen('game', { roomId: data.roomId, players: data.players });
+        try {
+            // Получаем контейнер игровой сцены
+            const gameScene = document.getElementById('game-scene');
+            if (!gameScene) {
+                appLogger.error('Не найден элемент game-scene');
+                return;
+            }
+            
+            // Создаем контроллер игры, если он еще не создан
+            if (!window.gameController) {
+                appLogger.info('Создание нового GameController');
+                window.gameController = new window.GameController(gameScene);
+            }
+            
+            // Переключаемся на экран игры вместе с данными игроков
+            app.showScreen('game', { roomId: data.roomId, players: data.players });
+            
+            appLogger.info('Переключение на игровой экран выполнено через handleStartGame', { roomId: data.roomId });
+        } catch (error) {
+            appLogger.error('Ошибка при обработке события запуска игры', { 
+                error: error.message,
+                stack: error.stack 
+            });
+            
+            // В случае ошибки показываем комнату снова
+            document.getElementById('room').style.display = 'block';
+            
+            // Показываем уведомление пользователю
+            showMessage('Не удалось запустить игру, произошла ошибка.', 5000);
+        }
     }
 
     /**
@@ -886,55 +914,130 @@
         // Показываем таймер
         countdownTimer.style.display = 'flex';
         
-        // Скрываем кнопку "Назад" во время отсчета
+        // Устанавливаем начальное значение таймера
+        let countdown = seconds;
+        countdownValue.textContent = countdown;
+        
+        // Скрываем кнопку "Назад"
         const backButton = document.getElementById('back-button');
         if (backButton) {
             backButton.style.display = 'none';
         }
         
-        // Плавно скрываем контейнер комнаты
+        // Скрываем контейнер комнаты с анимацией
         const roomContainer = document.querySelector('.room-container');
         if (roomContainer) {
-            roomContainer.style.transition = 'opacity 0.5s ease-out';
+            roomContainer.style.transition = 'transform 1.2s ease-in-out, opacity 1.2s ease-in-out, scale 1.2s ease-in-out';
+            roomContainer.style.transform = 'scale(0.3)';
             roomContainer.style.opacity = '0';
         }
         
-        // Скрываем главное меню (если оно вдруг видимо)
-        const mainMenu = document.getElementById('main-menu');
-        if (mainMenu) {
-            mainMenu.style.display = 'none';
+        // Добавляем эффект размытия с анимацией
+        const backgroundBlur = document.querySelector('.background-blur');
+        if (backgroundBlur) {
+            backgroundBlur.style.transition = 'transform 1.2s ease-in-out, filter 1.2s ease-in-out';
+            backgroundBlur.style.transform = 'scale(0.3)';
+            backgroundBlur.style.filter = 'blur(20px)';
         }
         
-        // Устанавливаем начальное значение
-        let secondsLeft = seconds;
-        countdownValue.textContent = secondsLeft;
+        // Скрываем главное меню (если оно вдруг видимо) с анимацией
+        const mainMenu = document.getElementById('main-menu');
+        if (mainMenu && mainMenu.style.display !== 'none') {
+            mainMenu.style.transition = 'opacity 1.2s ease-in-out, transform 1.2s ease-in-out';
+            mainMenu.style.opacity = '0';
+            mainMenu.style.transform = 'scale(0.3)';
+            
+            // Полностью скрываем после завершения анимации
+            setTimeout(() => {
+                mainMenu.style.display = 'none';
+            }, 1200);
+        }
         
-        // Создаем интервал для обновления таймера
+        // Запускаем интервал обратного отсчета
         countdownInterval = setInterval(() => {
-            secondsLeft--;
+            countdown--;
             
             // Обновляем отображение
-            countdownValue.textContent = secondsLeft;
+            countdownValue.textContent = countdown;
             
-            if (secondsLeft <= 0) {
-                // Останавливаем таймер
+            // Текст секунд с правильным склонением
+            let secondsText = 'секунд';
+            if (countdown === 1) {
+                secondsText = 'секунда';
+            } else if (countdown > 1 && countdown < 5) {
+                secondsText = 'секунды';
+            }
+            countdownTimer.querySelector('.countdown-text').textContent = `${secondsText} до начала`;
+            
+            // Когда отсчет дошел до нуля - инициализируем и запускаем игру
+            if (countdown <= 0) {
                 clearInterval(countdownInterval);
                 countdownInterval = null;
                 
                 // Скрываем таймер
                 countdownTimer.style.display = 'none';
                 
-                // Показываем игровую сцену
-                const gameScene = document.getElementById('game-scene');
-                if (gameScene) {
-                    gameScene.style.display = 'block';
-                }
+                // Скрываем экран комнаты
+                document.getElementById('room').style.display = 'none';
+                
+                // Инициализируем игру
+                initializeGameComponents();
             }
         }, 1000);
         
         appLogger.info('Запущен обратный отсчет', { seconds });
     }
     
+    /**
+     * Инициализирует компоненты игры и запускает игровой процесс
+     */
+    function initializeGameComponents() {
+        try {
+            appLogger.info('Начало инициализации игровых компонентов', { roomId });
+            
+            // Получаем контейнер игровой сцены
+            const gameScene = document.getElementById('game-scene');
+            if (!gameScene) {
+                appLogger.error('Не найден элемент game-scene');
+                return;
+            }
+            
+            // Создаем контроллер игры, если он еще не создан
+            if (!window.gameController) {
+                appLogger.info('Создание нового GameController');
+                window.gameController = new window.GameController(gameScene);
+            }
+            
+            // Подготавливаем данные комнаты для игры
+            const roomData = {
+                roomId: roomId,
+                players: playersData.map(player => ({
+                    userId: player.id,
+                    username: player.username,
+                    skin: player.skin || 'bitcoin',
+                    photoUrl: player.photoUrl
+                }))
+            };
+            
+            // Переключаемся на экран игры - компонент gameView.js сам инициализирует игру
+            app.showScreen('game', { roomId: roomId, players: roomData.players });
+            
+            appLogger.info('Переключение на игровой экран выполнено', { roomId: roomId });
+        } catch (error) {
+            appLogger.error('Ошибка при инициализации игры', { 
+                error: error.message,
+                stack: error.stack
+            });
+            console.error('Ошибка при инициализации игры:', error);
+            
+            // В случае ошибки показываем комнату снова
+            document.getElementById('room').style.display = 'block';
+            
+            // Показываем уведомление пользователю
+            showMessage('Не удалось запустить игру, произошла ошибка.', 5000);
+        }
+    }
+
     /**
      * Останавливает обратный отсчет
      * @param {string} reason - Причина остановки отсчета
@@ -961,8 +1064,34 @@
         // Восстанавливаем отображение контейнера комнаты
         const roomContainer = document.querySelector('.room-container');
         if (roomContainer) {
-            roomContainer.style.transition = 'opacity 0.5s ease-in';
+            roomContainer.style.transition = 'opacity 0.5s ease-in, transform 0.5s ease-in';
             roomContainer.style.opacity = '1';
+            roomContainer.style.transform = 'scale(1)';
+        }
+        
+        // Восстанавливаем отображение фона
+        const backgroundBlur = document.querySelector('.background-blur');
+        if (backgroundBlur) {
+            backgroundBlur.style.transition = 'transform 0.7s ease-in, opacity 0.7s ease-in';
+            backgroundBlur.style.transform = 'scale(1)';
+            backgroundBlur.style.opacity = '0.7';
+        }
+        
+        // Удаляем монеты игроков
+        const coinsContainer = document.getElementById('player-coins-container');
+        if (coinsContainer) {
+            // Анимация скрытия монет
+            const coins = coinsContainer.querySelectorAll('.player-coin');
+            coins.forEach((coin, index) => {
+                coin.style.transition = 'opacity 0.3s ease-out, transform 0.3s ease-out';
+                coin.style.opacity = '0';
+                coin.style.transform = 'scale(0.5)';
+            });
+            
+            // Удаляем контейнер монет после завершения анимации
+            setTimeout(() => {
+                coinsContainer.remove();
+            }, 300);
         }
         
         // Скрываем игровую сцену
