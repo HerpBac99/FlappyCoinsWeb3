@@ -71,12 +71,24 @@ io.on('connection', (socket) => {
             const users = fs.readJsonSync(usersFilePath);
             
             // Добавляем или обновляем данные пользователя
+            const isNewUser = !users[userData.id];
+            
+            // Если это новый пользователь, добавляем скин по умолчанию
+            if (isNewUser) {
+                userData.skin = 'bitcoin';
+            }
+            
             users[userData.id] = {
                 ...users[userData.id],
                 ...userData,
                 lastSeen: new Date().toISOString(),
                 socketId: socket.id
             };
+            
+            // Если существующий пользователь не имеет скина, добавляем по умолчанию
+            if (!users[userData.id].skin) {
+                users[userData.id].skin = 'bitcoin';
+            }
             
             // Сохраняем обновленные данные
             fs.writeJsonSync(usersFilePath, users, { spaces: 2 });
@@ -85,10 +97,10 @@ io.on('connection', (socket) => {
             socket.userId = userData.id;
             socket.userData = users[userData.id];
             
-            // Отправляем ответ клиенту
+            // Отправляем ответ клиенту с учетом скина пользователя
             socket.emit('joined', { success: true, userData: users[userData.id] });
             
-            console.log(`Пользователь ${users[userData.id].username} (${userData.id}) авторизован`);
+            console.log(`Пользователь ${users[userData.id].username} (${userData.id}) авторизован со скином ${users[userData.id].skin}`);
             
         } catch (error) {
             console.error('Ошибка при обработке события join:', error);

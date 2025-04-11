@@ -48,6 +48,15 @@
         const mainMenu = document.getElementById('main-menu');
         if (mainMenu) {
             mainMenu.style.display = 'block';
+            
+            // Сразу устанавливаем скин монеты по умолчанию, чтобы не было пустого изображения
+            const coinSprite = document.getElementById('coin-sprite');
+            if (coinSprite && window.skinService) {
+                // Временно устанавливаем скин по умолчанию, пока не загрузятся данные пользователя
+                const defaultSkinPath = window.skinService.getSkinImagePath('bitcoin');
+                coinSprite.src = defaultSkinPath;
+                appLogger.debug('Установлен начальный скин монеты', { path: defaultSkinPath });
+            }
         }
     }
 
@@ -70,6 +79,9 @@
             
             // Загружаем счет пользователя из сохраненных данных
             loadUserScore(user);
+            
+            // Обновляем скин монеты пользователя
+            updateCoinSkin(user);
             
         } catch (error) {
             appLogger.error('Ошибка при обновлении интерфейса пользователя', { error: error.message });
@@ -117,6 +129,44 @@
             .catch(error => {
                 appLogger.error('Ошибка при загрузке данных пользователя', { error: error.message });
             });
+    }
+
+    /**
+     * Обновляет скин монеты в зависимости от пользователя
+     * @param {Object} user - Данные пользователя
+     */
+    function updateCoinSkin(user) {
+        try {
+            const coinSprite = document.getElementById('coin-sprite');
+            if (!coinSprite) {
+                appLogger.warn('Элемент coin-sprite не найден');
+                return;
+            }
+            
+            if (!user) {
+                appLogger.warn('Нет данных пользователя для обновления скина монеты');
+                return;
+            }
+            
+            // Проверяем доступность сервиса скинов
+            if (!window.skinService) {
+                appLogger.error('Сервис скинов не найден');
+                return;
+            }
+            
+            // Получаем скин пользователя или используем скин по умолчанию
+            const userSkin = user.skin || window.skinService.getDefaultSkin();
+            
+            // Получаем путь к изображению для скина
+            const skinImagePath = window.skinService.getSkinImagePath(userSkin);
+            
+            // Устанавливаем изображение скина
+            coinSprite.src = skinImagePath;
+            
+            appLogger.info('Установлен скин монеты', { skin: userSkin, path: skinImagePath });
+        } catch (error) {
+            appLogger.error('Ошибка при обновлении скина монеты', { error: error.message });
+        }
     }
 
     /**
@@ -368,9 +418,33 @@
         socketService.off('roomJoined');
     }
 
+    /**
+     * Обновляет данные пользователя из внешнего источника
+     * @param {Object} updatedUserData - Обновленные данные пользователя
+     */
+    function updateUserData(updatedUserData) {
+        if (!updatedUserData) {
+            appLogger.warn('Получены пустые данные пользователя для обновления');
+            return;
+        }
+        
+        try {
+            // Обновляем сохраненные данные пользователя
+            userData = updatedUserData;
+            
+            // Обновляем UI с новыми данными
+            appLogger.info('Обновляем интерфейс с новыми данными пользователя из сервера');
+            updateUserInterface(userData);
+            
+        } catch (error) {
+            appLogger.error('Ошибка при обновлении данных пользователя в главном меню', { error: error.message });
+        }
+    }
+
     // Экспортируем компонент в глобальное пространство имен
     window.mainMenuComponent = {
         init: initMainMenu,
-        cleanup: cleanupMainMenu
+        cleanup: cleanupMainMenu,
+        updateUserData: updateUserData
     };
 })(); // Конец IIFE 

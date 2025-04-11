@@ -103,25 +103,65 @@ function initTelegramFeatures() {
 }
 
 /**
- * Инициализирует соединение по WebSocket
+ * Инициализирует WebSocket соединение
  */
 function initSocketConnection() {
     try {
-        appLogger.info('Инициализация WebSocket соединения');
+        // Инициализируем сокет с данными пользователя для авторизации
         appState.socket = socketService.initialize(appState.userData);
         
-        // Проверяем соединение через таймаут
-        setTimeout(() => {
-            if (!socketService.isConnected()) {
-                appLogger.warn('WebSocket соединение не установлено после инициализации, повторная попытка');
-                // Повторная попытка подключения
-                appState.socket = socketService.initialize(appState.userData);
-            }
-        }, 2000);
+        if (!appState.socket) {
+            appLogger.error('Не удалось инициализировать WebSocket соединение');
+            return;
+        }
         
-    } catch (socketError) {
-        appLogger.error('Ошибка при инициализации WebSocket', { error: socketError.message });
-        // Продолжаем инициализацию приложения даже при ошибке соединения
+        // Регистрируем обработчик события успешной авторизации
+        socketService.on('joined', (data) => {
+            appLogger.info('Пользователь успешно авторизован на сервере');
+            
+            // Обновляем данные пользователя из ответа сервера
+            if (data && data.userData) {
+                // Сохраняем предыдущий скин для отладки
+                const prevSkin = appState.userData ? appState.userData.skin : null;
+                
+                // Обновляем данные пользователя в приложении
+                appState.userData = data.userData;
+                
+                appLogger.debug('Обновлены данные пользователя с сервера', { 
+                    username: data.userData.username,
+                    skin: data.userData.skin,
+                    prevSkin: prevSkin
+                });
+                
+                // Если текущий экран - главное меню, обновляем его с новыми данными пользователя
+                if (appState.currentScreen && appState.currentScreen.id === 'mainMenu') {
+                    appLogger.info('Обновляем интерфейс главного меню с новыми данными пользователя');
+                    
+                    // Вызываем метод обновления интерфейса с данными о скине
+                    if (window.mainMenuComponent && typeof window.mainMenuComponent.updateUserData === 'function') {
+                        window.mainMenuComponent.updateUserData(data.userData);
+                    } else {
+                        // Если метод не найден, обновляем вручную
+                        const mainMenuElement = document.getElementById('main-menu');
+                        if (mainMenuElement) {
+                            const coinSprite = document.getElementById('coin-sprite');
+                            if (coinSprite && window.skinService && data.userData.skin) {
+                                const skinPath = window.skinService.getSkinImagePath(data.userData.skin);
+                                coinSprite.src = skinPath;
+                                appLogger.debug('Обновлен скин монеты после авторизации', { 
+                                    skin: data.userData.skin, 
+                                    path: skinPath 
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        
+        appLogger.info('WebSocket соединение инициализировано');
+    } catch (error) {
+        appLogger.error('Ошибка при инициализации WebSocket соединения', { error: error.message });
     }
 }
 

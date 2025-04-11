@@ -6,7 +6,8 @@
     "last_name": "User",
     "photo_url": null,
     "lastSeen": "2025-04-08T16:44:13.932Z",
-    "socketId": "utifl1g0srSzFVZ3AAAG"
+    "socketId": "utifl1g0srSzFVZ3AAAG",
+    "skin": "bitcoin"
   },
   "251053908": {
     "id": 251053908,
@@ -14,8 +15,9 @@
     "first_name": "Herp_Bac9",
     "last_name": "",
     "photo_url": "https://t.me/i/userpic/320/s4n98ESjhsRia-U2dwj8J5nxsCrN_wMTrRgKhEn1z_0.svg",
-    "lastSeen": "2025-04-11T06:45:29.301Z",
-    "socketId": "kiZbA8e1nT17Oz4TAAAN"
+    "lastSeen": "2025-04-11T08:40:58.837Z",
+    "socketId": "OeOhL1y1dugl3_m-AAAB",
+    "skin": "ethereum"
   },
   "427411790": {
     "id": 427411790,
@@ -24,7 +26,8 @@
     "last_name": "",
     "photo_url": "https://t.me/i/userpic/320/zndpWLsFzJsKarbjo_xBlXPRr7Pl09geCGXQf9Nb5hU.svg",
     "lastSeen": "2025-04-11T06:45:36.516Z",
-    "socketId": "buFEAfylGu1dwFRQAAAP"
+    "socketId": "buFEAfylGu1dwFRQAAAP",
+    "skin": "dogecoin"
   },
   "568613134": {
     "id": 568613134,
@@ -33,6 +36,7 @@
     "last_name": "",
     "photo_url": "https://t.me/i/userpic/320/eUqh3RBAHoZQ97-4lunhrq7oLs0MxOuXJ71rEOe__6s.svg",
     "lastSeen": "2025-04-10T18:29:13.252Z",
-    "socketId": "0ypUd15kDUbTCus4AAAD"
+    "socketId": "0ypUd15kDUbTCus4AAAD",
+    "skin": "bitcoin"
   }
 }
