@@ -902,6 +902,8 @@
             clearInterval(countdownInterval);
         }
         
+        appLogger.info('Запускаем обратный отсчет', { seconds });
+        
         // Получаем элементы таймера
         const countdownTimer = document.getElementById('countdown-timer');
         const countdownValue = countdownTimer.querySelector('.countdown-value');
@@ -910,6 +912,14 @@
             appLogger.error('Не найдены элементы таймера');
             return;
         }
+        
+        // Скрываем все экраны сразу
+        const allScreens = document.querySelectorAll('.screen');
+        allScreens.forEach(screen => {
+            if (screen.id !== 'room') {
+                screen.style.display = 'none';
+            }
+        });
         
         // Показываем таймер
         countdownTimer.style.display = 'flex';
@@ -940,19 +950,6 @@
             backgroundBlur.style.filter = 'blur(20px)';
         }
         
-        // Скрываем главное меню (если оно вдруг видимо) с анимацией
-        const mainMenu = document.getElementById('main-menu');
-        if (mainMenu && mainMenu.style.display !== 'none') {
-            mainMenu.style.transition = 'opacity 1.2s ease-in-out, transform 1.2s ease-in-out';
-            mainMenu.style.opacity = '0';
-            mainMenu.style.transform = 'scale(0.3)';
-            
-            // Полностью скрываем после завершения анимации
-            setTimeout(() => {
-                mainMenu.style.display = 'none';
-            }, 1200);
-        }
-        
         // Запускаем интервал обратного отсчета
         countdownInterval = setInterval(() => {
             countdown--;
@@ -969,23 +966,25 @@
             }
             countdownTimer.querySelector('.countdown-text').textContent = `${secondsText} до начала`;
             
+            appLogger.debug('Отсчет:', { countdown, secondsText });
+            
             // Когда отсчет дошел до нуля - инициализируем и запускаем игру
             if (countdown <= 0) {
                 clearInterval(countdownInterval);
                 countdownInterval = null;
                 
+                appLogger.info('Отсчет завершен, запускаем игру');
+                
                 // Скрываем таймер
                 countdownTimer.style.display = 'none';
                 
-                // Скрываем экран комнаты
+                // Скрываем экран комнаты полностью
                 document.getElementById('room').style.display = 'none';
                 
                 // Инициализируем игру
                 initializeGameComponents();
             }
         }, 1000);
-        
-        appLogger.info('Запущен обратный отсчет', { seconds });
     }
     
     /**
@@ -993,19 +992,40 @@
      */
     function initializeGameComponents() {
         try {
-            appLogger.info('Начало инициализации игровых компонентов', { roomId });
+            appLogger.info('===== НАЧАЛО ИНИЦИАЛИЗАЦИИ ИГРОВЫХ КОМПОНЕНТОВ =====', { roomId });
             
             // Получаем контейнер игровой сцены
             const gameScene = document.getElementById('game-scene');
             if (!gameScene) {
                 appLogger.error('Не найден элемент game-scene');
+                alert('Ошибка: Элемент игровой сцены не найден!');
                 return;
             }
+            
+            appLogger.debug('Игровая сцена найдена');
+            
+            // Проверяем наличие canvas
+            const gameCanvas = document.getElementById('game-canvas');
+            if (!gameCanvas) {
+                appLogger.error('Не найден элемент game-canvas');
+                alert('Ошибка: Элемент canvas не найден!');
+                return;
+            }
+            
+            appLogger.debug('Canvas найден');
             
             // Создаем контроллер игры, если он еще не создан
             if (!window.gameController) {
                 appLogger.info('Создание нового GameController');
                 window.gameController = new window.GameController(gameScene);
+                
+                if (!window.gameController) {
+                    appLogger.error('Не удалось создать GameController');
+                    alert('Ошибка: Не удалось создать контроллер игры!');
+                    return;
+                }
+            } else {
+                appLogger.info('GameController уже существует, используем его');
             }
             
             // Подготавливаем данные комнаты для игры
@@ -1019,22 +1039,56 @@
                 }))
             };
             
-            // Переключаемся на экран игры - компонент gameView.js сам инициализирует игру
-            app.showScreen('game', { roomId: roomId, players: roomData.players });
+            appLogger.debug('Подготовлены данные комнаты для игры', { 
+                roomId: roomData.roomId,
+                playersCount: roomData.players.length
+            });
             
-            appLogger.info('Переключение на игровой экран выполнено', { roomId: roomId });
+            // Скрываем все экраны кроме игрового
+            document.querySelectorAll('.screen').forEach(screen => {
+                if (screen.id !== 'game-scene') {
+                    screen.style.display = 'none';
+                    appLogger.debug(`Скрыт экран: ${screen.id}`);
+                }
+            });
+            
+            // Показываем игровую сцену
+            gameScene.style.display = 'block';
+            appLogger.debug('Игровая сцена отображена');
+            
+            // Полностью скрываем экран комнаты
+            document.getElementById('room').style.display = 'none';
+            appLogger.debug('Экран комнаты скрыт');
+            
+            // Переключаемся на экран игры
+            appLogger.info('Переключение на экран игры', { 
+                roomId: roomId, 
+                playersCount: roomData.players.length 
+            });
+            
+            // Запускаем игру через компонент gameView
+            setTimeout(() => {
+                try {
+                    app.showScreen('game', { 
+                        roomId: roomId, 
+                        players: roomData.players,
+                        userData: userData 
+                    });
+                    appLogger.info('===== ИГРОВОЙ ЭКРАН АКТИВИРОВАН =====');
+                } catch (gameError) {
+                    appLogger.error('Ошибка при переключении на экран игры', { 
+                        error: gameError.message,
+                        stack: gameError.stack
+                    });
+                }
+            }, 100); // Небольшая задержка для гарантии применения всех стилей
+            
         } catch (error) {
-            appLogger.error('Ошибка при инициализации игры', { 
+            appLogger.error('Ошибка при инициализации игровых компонентов', { 
                 error: error.message,
                 stack: error.stack
             });
-            console.error('Ошибка при инициализации игры:', error);
-            
-            // В случае ошибки показываем комнату снова
-            document.getElementById('room').style.display = 'block';
-            
-            // Показываем уведомление пользователю
-            showMessage('Не удалось запустить игру, произошла ошибка.', 5000);
+            alert('Произошла ошибка при запуске игры. Пожалуйста, обновите страницу.');
         }
     }
 

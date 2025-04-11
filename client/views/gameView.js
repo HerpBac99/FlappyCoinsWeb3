@@ -26,10 +26,35 @@
         playersData = params.players || [];
         
         try {
+            // Скрываем все экраны кроме игрового
+            document.querySelectorAll('.screen').forEach(screen => {
+                if (screen.id !== 'game-scene') {
+                    screen.style.display = 'none';
+                }
+            });
+            
             // Показываем игровую сцену
             const gameScene = document.getElementById('game-scene');
             if (gameScene) {
                 gameScene.style.display = 'block';
+                
+                if (window.appLogger) {
+                    window.appLogger.debug('Игровая сцена отображена');
+                }
+            } else {
+                if (window.appLogger) {
+                    window.appLogger.error('Элемент game-scene не найден');
+                }
+                return;
+            }
+            
+            // Проверяем наличие canvas
+            const gameCanvas = document.getElementById('game-canvas');
+            if (!gameCanvas) {
+                if (window.appLogger) {
+                    window.appLogger.error('Элемент game-canvas не найден');
+                }
+                return;
             }
             
             // Если игровой контроллер уже создан, используем его
@@ -42,6 +67,13 @@
             
             // Убедимся, что игра запущена
             if (!window.gameController.isInitialized()) {
+                if (window.appLogger) {
+                    window.appLogger.info('GameController не инициализирован, выполняем инициализацию', {
+                        roomId: roomId,
+                        playersCount: playersData.length
+                    });
+                }
+                
                 const roomData = {
                     roomId: roomId,
                     players: playersData
@@ -55,13 +87,38 @@
                     }
                     return;
                 }
+                
+                if (window.appLogger) {
+                    window.appLogger.info('GameController успешно инициализирован');
+                }
+            } else {
+                if (window.appLogger) {
+                    window.appLogger.info('GameController уже инициализирован');
+                }
+            }
+            
+            // Проверяем загрузку ресурсов через инспекцию canvas
+            const canvas = document.getElementById('game-canvas');
+            if (canvas) {
+                const ctx = canvas.getContext('2d');
+                if (ctx) {
+                    // Рисуем тестовый текст для проверки canvas
+                    ctx.fillStyle = 'white';
+                    ctx.font = '24px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('Инициализация игры...', canvas.width / 2, canvas.height / 2);
+                    
+                    if (window.appLogger) {
+                        window.appLogger.debug('Canvas проверен, контекст получен');
+                    }
+                }
             }
             
             // Запускаем игру, если она еще не запущена
             window.gameController.startGame();
             
             if (window.appLogger) {
-                window.appLogger.info('Игровой экран инициализирован', { 
+                window.appLogger.info('Игровой экран инициализирован и игра запущена', { 
                     roomId: roomId,
                     playersCount: playersData.length
                 });

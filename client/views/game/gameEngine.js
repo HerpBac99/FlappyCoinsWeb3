@@ -53,7 +53,7 @@ class GameEngine {
     loadAssets() {
         return new Promise((resolve, reject) => {
             // Количество ресурсов для загрузки
-            let totalResources = 3; // фон, труба, монеты
+            let totalResources = 2; // фон, труба, (и монеты будут добавлены динамически)
             let loadedResources = 0;
             
             // Функция для отслеживания загрузки ресурсов
@@ -65,33 +65,79 @@ class GameEngine {
                 }
                 
                 if (loadedResources >= totalResources) {
+                    if (window.appLogger) {
+                        window.appLogger.info('Все ресурсы загружены успешно');
+                    }
                     resolve();
                 }
+            };
+            
+            // Обработчик ошибок загрузки
+            const resourceError = (e) => {
+                if (window.appLogger) {
+                    window.appLogger.error(`Ошибка загрузки ресурса: ${e.target.src}`, { 
+                        error: e.type,
+                        source: e.target.src
+                    });
+                }
+                // Считаем ресурс загруженным, чтобы не блокировать завершение
+                resourceLoaded();
             };
             
             // Загрузка фона
             this.images.background = new Image();
             this.images.background.onload = resourceLoaded;
+            this.images.background.onerror = resourceError;
             this.images.background.src = 'assets/background-blur.png';
+            
+            if (window.appLogger) {
+                window.appLogger.debug('Запущена загрузка фона', { src: this.images.background.src });
+            }
             
             // Загрузка трубы
             this.images.pipe = new Image();
             this.images.pipe.onload = resourceLoaded;
+            this.images.pipe.onerror = resourceError;
             this.images.pipe.src = 'assets/pipe.png';
             
+            if (window.appLogger) {
+                window.appLogger.debug('Запущена загрузка трубы', { src: this.images.pipe.src });
+            }
+            
             // Загрузка скинов монет
-            const skins = window.skinService.getAllSkins();
+            const skins = window.skinService ? window.skinService.getAllSkins() : {};
             const skinKeys = Object.keys(skins);
             
-            // Обновляем общее количество ресурсов
-            totalResources = 2 + skinKeys.length;
+            if (skinKeys.length === 0) {
+                if (window.appLogger) {
+                    window.appLogger.warn('Не найдены скины монет, используем запасные варианты');
+                }
+            } else {
+                // Обновляем общее количество ресурсов
+                totalResources = 2 + skinKeys.length;
+                
+                // Загружаем все скины монет
+                skinKeys.forEach(skin => {
+                    this.images.coins[skin] = new Image();
+                    this.images.coins[skin].onload = resourceLoaded;
+                    this.images.coins[skin].onerror = resourceError;
+                    this.images.coins[skin].src = skins[skin];
+                    
+                    if (window.appLogger) {
+                        window.appLogger.debug(`Запущена загрузка скина ${skin}`, { src: skins[skin] });
+                    }
+                });
+            }
             
-            // Загружаем все скины монет
-            skinKeys.forEach(skin => {
-                this.images.coins[skin] = new Image();
-                this.images.coins[skin].onload = resourceLoaded;
-                this.images.coins[skin].src = skins[skin];
-            });
+            // Устанавливаем таймаут для разрешения промиса в любом случае
+            setTimeout(() => {
+                if (loadedResources < totalResources) {
+                    if (window.appLogger) {
+                        window.appLogger.warn(`Не все ресурсы загружены (${loadedResources}/${totalResources}), но игра продолжается`);
+                    }
+                    resolve();
+                }
+            }, 5000); // 5 секунд на загрузку
         });
     }
     
@@ -249,6 +295,36 @@ class GameEngine {
      * Запускает игру
      */
     startGame() {
+        if (window.appLogger) {
+            window.appLogger.info('Запуск игры...');
+        }
+        
+        // Проверяем готовность ресурсов
+        if (this.images.pipe && (!this.images.pipe.complete || this.images.pipe.naturalWidth === 0)) {
+            if (window.appLogger) {
+                window.appLogger.warn('Изображение трубы еще не загружено. Пытаемся загрузить снова.');
+            }
+            
+            // Пытаемся загрузить заново
+            this.images.pipe = new Image();
+            this.images.pipe.src = 'assets/pipe.png';
+        }
+        
+        // Проверяем доступность скинов
+        let skinCount = 0;
+        let loadedSkinCount = 0;
+        
+        for (const skin in this.images.coins) {
+            skinCount++;
+            if (this.images.coins[skin].complete && this.images.coins[skin].naturalWidth !== 0) {
+                loadedSkinCount++;
+            }
+        }
+        
+        if (window.appLogger) {
+            window.appLogger.debug(`Состояние скинов: загружено ${loadedSkinCount} из ${skinCount}`);
+        }
+        
         // Сбрасываем состояние игры
         this.gameState = window.GameConstants.GameState.PLAYING;
         this.lastTime = null;
@@ -267,7 +343,11 @@ class GameEngine {
         
         if (window.appLogger) {
             window.appLogger.info('Игра запущена', {
-                playersCount: this.playerManager.playersList.length
+                playersCount: this.playerManager.playersList.length,
+                pipeCount: this.pipeManager.getPipeList().length,
+                backgroundLoaded: this.images.background && this.images.background.complete,
+                pipeLoaded: this.images.pipe && this.images.pipe.complete,
+                skinLoaded: loadedSkinCount > 0
             });
         }
     }
@@ -366,39 +446,64 @@ class GameEngine {
      * Отрисовывает трубы
      */
     renderPipes() {
-        const { GameParams } = window.GameConstants;
-        const pipes = this.pipeManager.getPipeList();
-        
-        for (const pipe of pipes) {
-            // Верхняя труба
-            this.ctx.save();
-            this.ctx.translate(pipe.posX, pipe.posY - GameParams.PIPE_WIDTH);
-            this.ctx.rotate(Math.PI);
-            if (this.images.pipe) {
-                this.ctx.drawImage(this.images.pipe, -GameParams.PIPE_WIDTH, 0, GameParams.PIPE_WIDTH, GameParams.PIPE_WIDTH * 3);
-            } else {
-                this.ctx.fillStyle = 'green';
-                this.ctx.fillRect(-GameParams.PIPE_WIDTH, 0, GameParams.PIPE_WIDTH, GameParams.PIPE_WIDTH * 3);
-            }
-            this.ctx.restore();
+        try {
+            const { GameParams } = window.GameConstants;
+            const pipes = this.pipeManager.getPipeList();
             
-            // Нижняя труба
-            if (this.images.pipe) {
-                this.ctx.drawImage(
-                    this.images.pipe, 
-                    pipe.posX, 
-                    pipe.posY + GameParams.HEIGHT_BETWEEN_PIPES, 
-                    GameParams.PIPE_WIDTH, 
-                    GameParams.PIPE_WIDTH * 3
-                );
-            } else {
-                this.ctx.fillStyle = 'green';
-                this.ctx.fillRect(
-                    pipe.posX, 
-                    pipe.posY + GameParams.HEIGHT_BETWEEN_PIPES, 
-                    GameParams.PIPE_WIDTH, 
-                    GameParams.PIPE_WIDTH * 3
-                );
+            if (window.appLogger && pipes.length > 0) {
+                window.appLogger.debug(`Отрисовка труб: ${pipes.length} шт.`);
+            }
+            
+            for (const pipe of pipes) {
+                try {
+                    // Верхняя труба
+                    this.ctx.save();
+                    this.ctx.translate(pipe.posX, pipe.posY - GameParams.PIPE_WIDTH);
+                    this.ctx.rotate(Math.PI);
+                    
+                    // Проверяем, что изображение загружено и готово к отрисовке
+                    if (this.images.pipe && this.images.pipe.complete && this.images.pipe.naturalWidth !== 0) {
+                        this.ctx.drawImage(this.images.pipe, -GameParams.PIPE_WIDTH, 0, GameParams.PIPE_WIDTH, GameParams.PIPE_WIDTH * 3);
+                    } else {
+                        // Запасной вариант - рисуем прямоугольник если изображение не загрузилось
+                        this.ctx.fillStyle = 'green';
+                        this.ctx.fillRect(-GameParams.PIPE_WIDTH, 0, GameParams.PIPE_WIDTH, GameParams.PIPE_WIDTH * 3);
+                    }
+                    
+                    this.ctx.restore();
+                    
+                    // Нижняя труба
+                    if (this.images.pipe && this.images.pipe.complete && this.images.pipe.naturalWidth !== 0) {
+                        this.ctx.drawImage(
+                            this.images.pipe, 
+                            pipe.posX, 
+                            pipe.posY + GameParams.HEIGHT_BETWEEN_PIPES, 
+                            GameParams.PIPE_WIDTH, 
+                            GameParams.PIPE_WIDTH * 3
+                        );
+                    } else {
+                        // Запасной вариант - рисуем прямоугольник если изображение не загрузилось
+                        this.ctx.fillStyle = 'green';
+                        this.ctx.fillRect(
+                            pipe.posX, 
+                            pipe.posY + GameParams.HEIGHT_BETWEEN_PIPES, 
+                            GameParams.PIPE_WIDTH, 
+                            GameParams.PIPE_WIDTH * 3
+                        );
+                    }
+                } catch (pipeError) {
+                    if (window.appLogger) {
+                        window.appLogger.error('Ошибка при отрисовке трубы', { 
+                            error: pipeError.message,
+                            pipe: { x: pipe.posX, y: pipe.posY }
+                        });
+                    }
+                    // Продолжаем с следующей трубой
+                }
+            }
+        } catch (error) {
+            if (window.appLogger) {
+                window.appLogger.error('Ошибка при отрисовке труб', { error: error.message });
             }
         }
     }
@@ -407,51 +512,71 @@ class GameEngine {
      * Отрисовывает игроков (монеты)
      */
     renderPlayers() {
-        const { GameParams } = window.GameConstants;
-        const players = this.playerManager.getPlayersData();
-        
-        for (const player of players) {
-            this.ctx.save();
+        try {
+            const { GameParams } = window.GameConstants;
+            const players = this.playerManager.getPlayersData();
             
-            // Применяем поворот к монете
-            this.ctx.translate(
-                player.posX + GameParams.BIRD_WIDTH / 2,
-                player.posY + GameParams.BIRD_HEIGHT / 2
-            );
-            this.ctx.rotate((player.rotation * Math.PI) / 180);
-            
-            // Определяем скин монеты
-            const skinName = player.skin || 'bitcoin';
-            const coinImage = this.images.coins[skinName] || this.images.coins.bitcoin;
-            
-            // Рисуем монету
-            if (coinImage) {
-                this.ctx.drawImage(
-                    coinImage,
-                    -GameParams.BIRD_WIDTH / 2,
-                    -GameParams.BIRD_HEIGHT / 2,
-                    GameParams.BIRD_WIDTH,
-                    GameParams.BIRD_HEIGHT
-                );
-            } else {
-                // Запасной вариант если изображение не загрузилось
-                this.ctx.fillStyle = 'yellow';
-                this.ctx.beginPath();
-                this.ctx.arc(0, 0, GameParams.BIRD_WIDTH / 2, 0, Math.PI * 2);
-                this.ctx.fill();
+            if (window.appLogger && players.length > 0) {
+                window.appLogger.debug(`Отрисовка игроков: ${players.length} шт.`);
             }
             
-            this.ctx.restore();
-            
-            // Добавляем имя игрока над монетой
-            this.ctx.fillStyle = 'white';
-            this.ctx.font = '14px Arial';
-            this.ctx.textAlign = 'center';
-            this.ctx.fillText(
-                player.username,
-                player.posX + GameParams.BIRD_WIDTH / 2,
-                player.posY - 10
-            );
+            for (const player of players) {
+                try {
+                    this.ctx.save();
+                    
+                    // Применяем поворот к монете
+                    this.ctx.translate(
+                        player.posX + GameParams.BIRD_WIDTH / 2,
+                        player.posY + GameParams.BIRD_HEIGHT / 2
+                    );
+                    this.ctx.rotate((player.rotation * Math.PI) / 180);
+                    
+                    // Определяем скин монеты
+                    const skinName = player.skin || 'bitcoin';
+                    const coinImage = this.images.coins[skinName] || this.images.coins.bitcoin;
+                    
+                    // Рисуем монету
+                    if (coinImage && coinImage.complete && coinImage.naturalWidth !== 0) {
+                        this.ctx.drawImage(
+                            coinImage,
+                            -GameParams.BIRD_WIDTH / 2,
+                            -GameParams.BIRD_HEIGHT / 2,
+                            GameParams.BIRD_WIDTH,
+                            GameParams.BIRD_HEIGHT
+                        );
+                    } else {
+                        // Запасной вариант если изображение не загрузилось
+                        this.ctx.fillStyle = 'yellow';
+                        this.ctx.beginPath();
+                        this.ctx.arc(0, 0, GameParams.BIRD_WIDTH / 2, 0, Math.PI * 2);
+                        this.ctx.fill();
+                    }
+                    
+                    this.ctx.restore();
+                    
+                    // Добавляем имя игрока над монетой
+                    this.ctx.fillStyle = 'white';
+                    this.ctx.font = '14px Arial';
+                    this.ctx.textAlign = 'center';
+                    this.ctx.fillText(
+                        player.username,
+                        player.posX + GameParams.BIRD_WIDTH / 2,
+                        player.posY - 10
+                    );
+                } catch (playerError) {
+                    if (window.appLogger) {
+                        window.appLogger.error('Ошибка при отрисовке игрока', {
+                            error: playerError.message,
+                            player: { username: player.username, x: player.posX, y: player.posY }
+                        });
+                    }
+                    // Продолжаем с следующим игроком
+                }
+            }
+        } catch (error) {
+            if (window.appLogger) {
+                window.appLogger.error('Ошибка при отрисовке игроков', { error: error.message });
+            }
         }
     }
     
