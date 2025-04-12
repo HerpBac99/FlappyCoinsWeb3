@@ -1,7 +1,7 @@
 ---
 description: 
-globs: *.html*,*.css*
-alwaysApply: false
+globs: 
+alwaysApply: true
 ---
 ---
 description: Правила для HTML-файлов — структура, семантика, интеграция с Telegram WebApp

@@ -1,6 +1,27 @@
+/**
+ * Модуль для логгирования сообщений приложения
+ * Поддерживает разные уровни логов и отправку на сервер
+ */
+
 // Константы для логирования
 const LOG_STORAGE_KEY = 'flappyCoin_logs'; // Ключ для хранения логов в localStorage
 const MAX_STORED_LOGS = 1000; // Максимальное количество хранимых логов
+
+// Константы уровней логгирования
+const LOG_LEVELS = {
+    DEBUG: 0,
+    INFO: 1,
+    WARN: 2,
+    ERROR: 3
+};
+
+// Текущий уровень логирования (можно изменить в зависимости от окружения)
+let currentLogLevel = LOG_LEVELS.DEBUG;
+
+// Настройка логгера в зависимости от окружения
+if (process.env.NODE_ENV === 'production') {
+    currentLogLevel = LOG_LEVELS.WARN;
+}
 
 /**
  * Система логирования для клиентской части
@@ -435,6 +456,11 @@ const Logger = {
         // Сохраняем логи в localStorage
         this.saveLogs();
         
+        // Отправляем серьезные логи на сервер
+        if (level === 'error' || level === 'warn') {
+            this._sendLogToServer(logEntry);
+        }
+        
         return logEntry;
     },
     
@@ -622,15 +648,98 @@ const Logger = {
             console.error('Ошибка при форматировании логов для копирования:', error);
             return `Ошибка при форматировании логов: ${error.message}`;
         }
+    },
+    
+    /**
+     * Отправка логов на сервер (если необходимо)
+     * @private
+     * @param {Object} logEntry - Запись лога для отправки
+     */
+    _sendLogToServer(logEntry) {
+        try {
+            // Если в локальном хранилище есть URL для логгирования, отправляем туда
+            const logServerUrl = localStorage.getItem('logServerUrl');
+            
+            if (logServerUrl) {
+                fetch(logServerUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(logEntry),
+                    // Используем keepalive, чтобы запрос мог завершиться даже если страница закрывается
+                    keepalive: true
+                }).catch(e => {
+                    // Ошибки игнорируем, так как это некритичная функциональность
+                    console.error('Ошибка отправки лога на сервер:', e);
+                });
+            }
+        } catch (e) {
+            // Игнорируем ошибки отправки логов
+        }
     }
 };
 
 // Создаем удобные методы для логирования разных уровней
 const appLogger = {
-    info: (message, data = null) => Logger.log(message, 'info', data),
-    debug: (message, data = null) => Logger.log(message, 'debug', data),
-    warn: (message, data = null) => Logger.log(message, 'warn', data),
-    error: (message, data = null) => Logger.log(message, 'error', data)
+    /**
+     * Установка уровня логирования
+     * @param {number} level - Уровень из LOG_LEVELS
+     */
+    setLevel(level) {
+        if (Object.values(LOG_LEVELS).includes(level)) {
+            currentLogLevel = level;
+            this.info(`Установлен уровень логирования: ${
+                Object.keys(LOG_LEVELS).find(key => LOG_LEVELS[key] === level)
+            }`);
+        } else {
+            this.warn(`Неверный уровень логирования: ${level}`);
+        }
+    },
+    
+    /**
+     * Логирование отладочной информации (самый низкий уровень)
+     * @param {string} message - Сообщение для лога
+     * @param {Object} [data] - Дополнительные данные для лога
+     */
+    debug(message, data = null) {
+        if (currentLogLevel <= LOG_LEVELS.DEBUG) {
+            Logger.log(message, 'debug', data);
+        }
+    },
+    
+    /**
+     * Логирование информационных сообщений
+     * @param {string} message - Сообщение для лога
+     * @param {Object} [data] - Дополнительные данные для лога
+     */
+    info(message, data = null) {
+        if (currentLogLevel <= LOG_LEVELS.INFO) {
+            Logger.log(message, 'info', data);
+        }
+    },
+    
+    /**
+     * Логирование предупреждений
+     * @param {string} message - Сообщение для лога
+     * @param {Object} [data] - Дополнительные данные для лога
+     */
+    warn(message, data = null) {
+        if (currentLogLevel <= LOG_LEVELS.WARN) {
+            Logger.log(message, 'warn', data);
+        }
+    },
+    
+    /**
+     * Логирование ошибок
+     * @param {string} message - Сообщение для лога
+     * @param {Object|Error} [data] - Ошибка или дополнительные данные для лога
+     */
+    error(message, data = null) {
+        if (currentLogLevel <= LOG_LEVELS.ERROR) {
+            Logger.log(message, 'error', data);
+        }
+    }
 };
 
 // Инициализируем логгер при загрузке скрипта
@@ -666,4 +775,7 @@ function safeCallTgMethod(tgApp, methodName, args = []) {
 }
 
 // Экспортируем для использования в других файлах
-window.safeCallTgMethod = safeCallTgMethod; 
+window.safeCallTgMethod = safeCallTgMethod;
+
+// Экспортируем основной логгер для использования в других модулях
+export const logger = appLogger; 

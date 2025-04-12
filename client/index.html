@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>FlappyCoin</title>
+    <title>FlappyCoins Web3</title>
     <!-- Подключаем шрифты -->
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -11,113 +11,93 @@
     <link rel="stylesheet" href="style/app.css">
     <link rel="stylesheet" href="style/mainMenu.css">
     <link rel="stylesheet" href="style/room.css">
+    <link rel="stylesheet" href="style/game.css">
 </head>
 <body>
-    <!-- Загрузочный индикатор -->
-    <!-- <div id="loading-overlay">
+    <!-- Загрузочный экран -->
+    <div id="loading-view">
         <div class="spinner"></div>
-        <div class="loading-text">Загрузка FlappyCoin...</div>
-    </div> -->
+        <div class="loading-text">Загрузка FlappyCoins Web3...</div>
+    </div>
     
     <!-- Основной контейнер приложения -->
     <div id="app-container">
-        <!-- Главное меню (скрыто по умолчанию) -->
-        <div id="main-menu" class="screen" style="display: none;">
+        <!-- Главное меню -->
+        <div id="main-menu-view" class="screen">
             <header class="user-info">
-                <figure class="user-photo">
+                <div class="avatar-container">
                     <img id="user-avatar" src="assets/default-avatar.png" alt="Аватар пользователя">
-                </figure>
+                    <div id="avatar-placeholder" class="avatar-placeholder"></div>
+                </div>
                 <section class="user-details">
                     <h2 id="username" class="username">Загрузка...</h2>
-                    <p id="user-score" class="score">Счет: 0</p>
                 </section>
             </header>
 
             <main class="center-container">
-                <h1 class="app-title">FlappyCoin</h1>
-                <figure class="coin-animation">
-                    <img id="coin-sprite" src="" alt="Анимированная монета">
-                </figure>
-                <nav class="menu-buttons">
-                    <button id="play-button" class="play-button" type="button">ИГРАТЬ</button>
-                </nav>
+                <h1 class="app-title">FlappyCoins Web3</h1>
+                <div class="logo-container">
+                    <img src="assets/logo.png" alt="Logo" class="game-logo">
+                </div>
+                <div class="menu-options">
+                    <div class="menu-option">
+                        <button id="create-room-btn" class="main-button">Создать комнату</button>
+                    </div>
+                    <div class="menu-option">
+                        <input id="room-id-input" type="text" placeholder="ID комнаты" maxlength="6">
+                        <button id="join-room-btn" class="main-button">Присоединиться</button>
+                    </div>
+                </div>
             </main>
         </div>
 
-        <!-- Комната (скрыта по умолчанию) -->
-        <div id="room" class="screen" style="display: none;">
-            <!-- Фоновое изображение с размытием -->
-            <div class="background-blur"></div>
-            
-            <!-- Основной контейнер комнаты -->
-            <div class="room-container">
-                <!-- Контейнер с заголовком комнаты -->
-                <div class="room-header">
-                    <h1 id="room-title">Комната №...</h1>
-                    <div class="room-info">
-                        <div id="room-id">ID: загрузка...</div>
-                        <div id="players-count">Игроков: 0/6</div>
-                    </div>
-                </div>
-                
-                <!-- Сетка игроков -->
-                <div class="players-grid">
-                    <!-- Строка заголовков таблицы -->
-                    <div class="grid-header player-name">Игрок</div>
-                    <div class="grid-header player-status">Статус</div>
-                    
-                    <!-- Игроки будут добавлены динамически через JavaScript -->
-                </div>
-                
-                <!-- Информация о статусе -->
-                <div class="status-info">
-                    <p>Нажмите на свой статус, чтобы изменить готовность</p>
-                    <div class="status-examples">
-                        <div class="status-example">
-                            <div class="status-circle not-ready">✗</div>
-                            <span>Не готов</span>
-                        </div>
-                        <div class="status-example">
-                            <div class="status-circle ready">✓</div>
-                            <span>Готов</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Кнопка возврата к главному меню -->
-            <div class="back-button-container">
-                <button id="back-button" class="back-button">← Назад</button>
+        <!-- Комната ожидания -->
+        <div id="room-view" class="screen">
+            <div class="room-header">
+                <h2>Комната</h2>
+                <div id="room-id" class="room-id">ID: ...</div>
             </div>
             
-            <!-- Таймер обратного отсчета (скрыт по умолчанию) -->
-            <div id="countdown-timer" class="countdown-timer">
-                <div class="countdown-value">5</div>
-                <div class="countdown-text">секунд до начала</div>
+            <div class="players-container">
+                <h3>Игроки</h3>
+                <div id="players-list" class="players-list">
+                    <!-- Список игроков будет заполнен динамически -->
+                </div>
+            </div>
+            
+            <div class="room-controls">
+                <button id="ready-btn" class="ready-button ready">Готов</button>
+                <button id="back-to-menu-btn" class="back-button">Назад в меню</button>
             </div>
         </div>
 
-        <!-- Игровая сцена (скрыта по умолчанию) -->
-        <div id="game-scene" class="screen" style="display: none;">
+        <!-- Игровое поле -->
+        <div id="game-view" class="screen">
             <canvas id="game-canvas"></canvas>
+            
+            <!-- Диалог окончания игры -->
+            <div id="game-over-dialog" class="game-over-dialog">
+                <div class="game-over-content">
+                    <h2>Игра окончена</h2>
+                    <div class="winner-info">
+                        <h3>Победитель:</h3>
+                        <p id="winner-name">...</p>
+                    </div>
+                    <button id="back-to-room-btn" class="main-button">Вернуться в комнату</button>
+                </div>
+            </div>
         </div>
     </div>
     
-    <!-- Socket.IO клиент (должен загружаться первым) -->
-    <script src="socket.io/socket.io.js"></script>
+    <!-- Socket.IO клиент -->
+    <script src="/socket.io/socket.io.js"></script>
     
-    <!-- Базовые сервисы -->
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <script src="logger.js"></script>
-    <script src="telegram.js"></script>
-    <script src="services/socketService.js"></script>
-    <script src="services/skinService.js"></script>
-    
-    <!-- Компоненты -->
-    <script src="views/mainMenu.js"></script>
-    <script src="views/roomView.js"></script>
-    
-    <!-- Основной контроллер приложения -->
-    <script src="app.js"></script>
+    <!-- Модули приложения -->
+    <script type="module" src="logger.js"></script>
+    <script type="module" src="utils.js"></script>
+    <script type="module" src="services/telegramService.js"></script>
+    <script type="module" src="services/socketService.js"></script>
+    <script type="module" src="gameEngine.js"></script>
+    <script type="module" src="app.js"></script>
 </body>
 </html> 
